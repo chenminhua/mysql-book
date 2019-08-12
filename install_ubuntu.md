@@ -23,7 +23,7 @@ sudo mysql
 
 ```
 > CREATE USER 'minhua'@'localhost' IDENTIFIED BY '1234qwer';
-> GRANT ALL PRIVILEGES ON *.* TO ''@''  WITH GRANT OPTION.
+> GRANT ALL PRIVILEGES ON *.* TO 'minhua'@'localhost'  WITH GRANT OPTION;
 
 > exit
 
