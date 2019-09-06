@@ -51,3 +51,23 @@ select * from user where name like '张%' and age=10;
 但是，如果你更新的是唯一索引的话，因为需要判断这个操作有没有违反唯一性约束，就不能用 change buffer 了。
 
 Change buffer 的大小可以通过 innodb_change_buffer_max_size 来动态设置，这个参数设置为 50，表示 change buffer 的大小最多为 buffer pool 的 50%.
+
+对于写多读少的业务，使用 change buffer 比较划算；如果是写完就会读的业务，change buffer 就没啥用了。
+
+## change buffer 和 redo log
+
+```
+insert into t(id, k) values(id1, k1), (id2, k2);
+```
+
+假设我们查到插入位置后，k1 所在的页在内存中，K2 所在的页不在内存中。这条语句更新了四个部分：内存、redo_log（ib_log_fileX），数据表空间(t.ibd)，系统表空间(ibdata1)。
+
+而事实上，当时这条语句做了如下操作。
+
+1. Page1 在内存中，直接更新内存
+2. Page2 没有在内存中，先写 change buffer，记录下“我要在 page2 插入一行”。
+3. 将上述过程计入 redo log
+
+这个操作就写了两处内存，一处磁盘(redo log)。
+
+redo log 主要是节省随机写磁盘的 IO 消耗（转成顺序写），而 change buffer 则是节省随机读的 IO 消耗。
