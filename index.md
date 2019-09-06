@@ -1,5 +1,24 @@
 在 innodb 中表都是根据主键索引形式存放的，称为索引组织表，每个索引都是 B+树。
 
+### 前缀索引怎么加，有啥用
+
+```
+前六个字符做索引
+alter table SUser add index index2(email(6));
+```
+
+前缀索引的好处是其占用空间更小，并且这样在一个数据页上能放下的索引节点也就更多，搜索效率就更高。（缺点是可能导致扫描更多的行，并且没有覆盖索引的优化可用）
+
+如何确定我该使用多长的前缀呢？建立索引关注的是区分度，区分度越高越好。因此可以通过统计索引上有多少不同的值来判断用多长的前缀。
+
+```
+select count(distinct email) as L from user;
+select count(distinct left(email, 4)) as L4,
+       count(distinct left(email, 5)) as l5,
+       count(distinct left(email, 6)) as l6,
+       count(distinct left(email, 7)) as l7 from user;
+```
+
 ### 如何重建索引？
 
 ```
