@@ -64,3 +64,45 @@ set global transaction isolation level read committed;
 快照隔离级别对长时间运行的只读查询比较有用（备份、批处理分析）。
 
 与读提交一样，可重复读采用行锁来防止脏写。但是读数据是不用加锁的，因为读都是在一致性快照上读取。这使得数据库在处理正常的写入时，在一致性快照上可以执行长时间的只读查询，两者之间没有任何锁竞争。
+
+在 mysql 中，如果是 RR 隔离级别，事务启动时会创建一个 readview,之后有人改了数据，它再读也是看到事务启动时候的数据。
+但是如果有个事务想更新一行但是被 block 了（拿不到写锁），那等他终于拿到这个锁的时候，看见的是啥？
+
+**注意，在 MySQL 中，一致性快照并不是 start transaction 的时候创建的，而是在之后第一个操作 innodb 的语句的时候。如果你想在 start transaction 的时候立即创建快照，就需要 start transaction with consistent snapshot。**
+
+```
+CREATE TABLE `t` (
+  `id` int(11) NOT NULL,
+  `k` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+insert into t(id, k) values(1,1),(2,2);
+
+tx1: start transaction with consistent snapshot
+tx2: start transaction with consistent snapshot
+tx3: update t set k = k + 1 where id = 1;   (auto commit)
+tx2: update t set k = k+1 where id = 1;
+tx2: select k from t where id = 1;
+tx1: select k from t where id = 1; commit;
+tx2: commit;
+```
+
+在上面的例子中，tx2 查 id=1 的 k 值为 3，而 tx1 查到的是 1。
+
+在 mysql 中，有两个视图的概念：一个是 view，另一个是 innodb 的一致性读视图。
+
+## How InnoDB MVCC works.
+
+RR 下，事务启动时对整个数据库拍了个快照。
+
+innodb 中每个事务都有唯一的 trx_id，是事务开始的时候申请的，严格递增。
+
+每行数据都有多个版本，每次事务更新数据就会产生新版本，并把 trx_id 赋值给这个版本的事务 id，记为 row_trx_id。同时旧数据也会保留，并且在新版本中可以直接拿到旧版本数据。
+
+也就是说，每行数据有多个版本 row,每个版本对应一个事务（对应一个 row_trx_id）。而这些版本，事实上是通过 undo log 来计算的。
+
+如果事务 B 在更新前查数据，它看到的确实是 1，但是当它要去更新数据的时候，就不能在历史版本更新了，否则事务 C 的更新旧丢了。所以事务 B 是在当前数据而非历史版本上更新的。
+这存在一条“当前读”规则：更新数据都是先读后写的，而且读的都是当前值（而非历史版本）。
+除了 Update 外， select 语句加锁（ lock in share mode 或 for update）也是当前读。
+
+【参考印象笔记】
