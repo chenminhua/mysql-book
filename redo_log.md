@@ -1,10 +1,6 @@
 #### 为啥要有 redo log
 
-为了让 update 更快。如果没有 redo log 的话，更新一条数据要先将查到其在磁盘上的位置，然后更新到磁盘上。而 redo log 是一种 WAL，也就是先写日志，以后再落盘。
-
-#### redo log 是 那一层实现的？
-
-innodb 实现的
+为了让 update 更快。如果没有 redo log 的话，更新一条数据要先将查到其在磁盘上的位置，然后更新到磁盘上。而 redo log 是一种 WAL，也就是先写日志，以后再落盘。redo log 是 innodb 实现的。
 
 #### innodb_flush_log_at_trx_commit 与 crash-safe
 
