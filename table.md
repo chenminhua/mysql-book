@@ -59,3 +59,14 @@ alter table t add FULLTEXT(field_name);
 analyze table t; --对表的索引信息做重新统计
 Optimize table t; --recreate + analyze
 ```
+
+## 如何查看现在 mysql 正在使用的隔离级别
+
+```ß
+select @@tx_isolation       当前会话隔离级别
+select @@global.tx_isolation     全局隔离级别
+
+设置隔离级别
+set session transaction isolation level read committed;
+set global transaction isolation level read committed;
+```
