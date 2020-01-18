@@ -1,0 +1,5 @@
+(define (twoBigSum a b c)
+  (cond ((and (> b a) (> c a)) (+ b c))
+        ((and (> a b) (> c b)) (+ a c))
+        ((and (> a c) (> b c)) (+ a b))))
+(twoBigSum 3 4 2)
