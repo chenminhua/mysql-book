@@ -1,0 +1,5 @@
+data
+.vscode
+*/.ipython_checkpoints
+.idea
+__pycache__/
