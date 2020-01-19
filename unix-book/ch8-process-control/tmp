@@ -1,0 +1,4 @@
+before fork
+pid = 36569, var = 1, globalVar = 1
+before fork
+pid = 36568, var = 0, globalVar = 0
