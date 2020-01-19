@@ -1,7 +1,8 @@
-## 如何构建Key
-key不要太长，因为lookup of the key may require several costly key-comparisons。
-key不要太短，不要牺牲可读性。
-Try to stick with a schema.  "Object-type:id", "user:1000:followers", "comment:1234:reply.to"
+## 如何构建 Key
+
+key 不要太长，因为 lookup of the key may require several costly key-comparisons。
+key 不要太短，不要牺牲可读性。
+Try to stick with a schema. "Object-type:id", "user:1000:followers", "comment:1234:reply.to"
 
 ```
 Exists k
@@ -11,7 +12,8 @@ Type k
 ```
 
 ## 字符串，binary-safe string
-不能超过512M。
+
+不能超过 512M。
 
 ```
 set k v nx        表示只在k不存在的时候才能set
@@ -33,7 +35,8 @@ ttl key           查看key何时失效
 ```
 
 ## List
-双向链表，首尾添加元素很快，但access by index就可能很慢。如果你需要快速访问中间元素，请使用zset。
+
+双向链表，首尾添加元素很快，但 access by index 就可能很慢。如果你需要快速访问中间元素，请使用 zset。
 
 ```
 LPUSH KEY V1 V2 V3
@@ -49,7 +52,7 @@ RPOP Key
 LTRIM KEY 0 1000     保留前1000 个元素，其余删除
 ```
 
-List常见应用场景: timeline, 消息队列，任务队列。
+List 常见应用场景: timeline, 消息队列，任务队列。
 
 ```
 BRPOP KEY 5       阻塞式pop, 最多等5s。
@@ -58,9 +61,9 @@ BRPOP KEY1 KEY2 KEY3 5   阻塞式pop，可以同时等多个列表
 类似的当然还有BLPOP
 ```
 
-redis在blpop命令处理过程时，首先会去查找key对应的list，如果存在，则pop出数据响应给客户端。否则将对应的key push到blocking\_keys数据结构当中，对应的value是被阻塞的client。当下次push命令发出时，服务器检查blocking\_keys当中是否存在对应的key，如果存在，则将key添加到ready\_keys链表当中，同时将value插入链表当中并响应客户端。
+redis 在 blpop 命令处理过程时，首先会去查找 key 对应的 list，如果存在，则 pop 出数据响应给客户端。否则将对应的 key push 到 blocking_keys 数据结构当中，对应的 value 是被阻塞的 client。当下次 push 命令发出时，服务器检查 blocking_keys 当中是否存在对应的 key，如果存在，则将 key 添加到 ready_keys 链表当中，同时将 value 插入链表当中并响应客户端。
 
-因为BRPOP和BLPOP都可以同时POP多个LIST，所以他们的返回除了value，还要包含对应的key。
+因为 BRPOP 和 BLPOP 都可以同时 POP 多个 LIST，所以他们的返回除了 value，还要包含对应的 key。
 
 ```
 // 这两个命令负责将元素从一个列表移动到另一个列表
@@ -69,12 +72,14 @@ BRPOPLPUSH src-key dest-key timeout
 ```
 
 ## Set
+
 ```
 sadd myset 1 2 3
 smember myset
 sismember myset 3
 ```
-Sets are good for expressing relations between objects. 比如说，我们可以用set来实现tag的功能。
+
+Sets are good for expressing relations between objects. 比如说，我们可以用 set 来实现 tag 的功能。
 
 ## sorted set (zset)
 
@@ -94,7 +99,8 @@ ZREVRANGEBYSCORE key-name max min
 zrangebyscore z 0 800 withscores # 获取给定分值范围内的元素
 ```
 
-## Hash 
+## Hash
+
 ```
 hmset user:1000 username antirez birthyear 1977 verified 1
 hget user:1000 username
@@ -104,8 +110,16 @@ hmget user:1000 username birthyear no-such-field
 hincrby user:1000 birthyear 10
 ```
 
-## Bit Arrays
-offset最大不超过Integer.MAX\_VALUE，也就是最大 512M。
+## Bit Arrays (bitmap, 位图)
+
+offset 最大不超过 Integer.MAX_VALUE，也就是最大 512M。可以用来搞 bloom filter 。
+
+```
+SETBIT key offset val
+GETBIT key offset
+BITCOUNT key [start] [end]
+BITPOS KEY bit [start] [end]
+```
 
 ## HyperLogLog
 
@@ -151,6 +165,5 @@ https://zhuanlan.zhihu.com/p/35940647
 ```
 
 ## reference
-[redis数据类型](https://redis.io/topics/data-types-intro)
 
-
+[redis 数据类型](https://redis.io/topics/data-types-intro)
