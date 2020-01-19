@@ -83,6 +83,11 @@ Sets are good for expressing relations between objects. 比如说，我们可以
 
 ## sorted set (zset)
 
+与 set 的不同之处在于 zset 中的每个数都对应一个绑定的浮点数 score。
+
+- if A.score > B.score, then A > B
+- if A.score == B.score，then compare lexicographically.
+
 ```
 ## zset,redis的有序集合
 ZADD key-name score member [score member ...]      # 将带有给定分值的成员添加到有序集合里面
@@ -97,6 +102,81 @@ ZREVRANK key-name member   # 返回成员排名
 ZREVRANGE key-name min max
 ZREVRANGEBYSCORE key-name max min
 zrangebyscore z 0 800 withscores # 获取给定分值范围内的元素
+```
+
+示例
+
+```
+zadd hackers 1940 "Alan Kay"
+zadd hackers 1957 "Sophie Wilson"
+zadd hackers 1953 "Richard Stallman"
+zadd hackers 1949 "Anita Borg"
+zadd hackers 1965 "Yukihiro Matsumoto"
+zadd hackers 1914 "Hedy Lamarr"
+zadd hackers 1916 "Claude Shannon"
+zadd hackers 1969 "Linus Torvalds"
+zadd hackers 1912 "Alan Turing"
+
+zrange hackers 0 -1
+1) "Alan Turing"
+2) "Hedy Lamarr"
+3) "Claude Shannon"
+4) "Alan Kay"
+5) "Anita Borg"
+6) "Richard Stallman"
+7) "Sophie Wilson"
+8) "Yukihiro Matsumoto"
+9) "Linus Torvalds"
+
+zrevrange hackers 0 -1
+1) "Linus Torvalds"
+2) "Yukihiro Matsumoto"
+3) "Sophie Wilson"
+4) "Richard Stallman"
+5) "Anita Borg"
+6) "Alan Kay"
+7) "Claude Shannon"
+8) "Hedy Lamarr"
+9) "Alan Turing"
+
+zrange hackers 0 -1 withscores
+ 1) "Alan Turing"
+ 2) "1912"
+ 3) "Hedy Lamarr"
+ 4) "1914"
+ 5) "Claude Shannon"
+ 6) "1916"
+ 7) "Alan Kay"
+ 8) "1940"
+ 9) "Anita Borg"
+10) "1949"
+11) "Richard Stallman"
+12) "1953"
+13) "Sophie Wilson"
+14) "1957"
+15) "Yukihiro Matsumoto"
+16) "1965"
+17) "Linus Torvalds"
+18) "1969"
+
+zrangebyscore hackers -inf 1950
+1) "Alan Turing"
+2) "Hedy Lamarr"
+3) "Claude Shannon"
+4) "Alan Kay"
+5) "Anita Borg"
+
+zremrangebyscore hackers 1940 1960
+(integer) 4
+
+zrank hackers "Claude Shannon"
+(integer) 2
+zrank hackers "Alan Turing"
+(integer) 0
+// also zrevrank
+
+
+
 ```
 
 ## Hash
