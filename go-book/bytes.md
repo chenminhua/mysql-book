@@ -2,6 +2,10 @@
 
 # 概览
 
+string 就是一个只读的[]byte,当我们 index 字符串的时候，我们得到的是 bytes 而不是字符，而当我们 range loop 字符串的时候，得到的是 rune(代表字符)。
+
+byte 是 uint8 的别名,rune 是 int32 的别名。golang 的源码是 UTF-8 的，所以 string 字面量都是 utf8 的。
+
 Go 中，字符串 string 是内置类型，与文本处理相关的内置类型还有符文 rune 和字节 byte。无论是源码还是字符串的内部编码都是 UTF8。
 
 Go 将大部分字符串处理的函数放在了 strings,bytes 这两个包里。字符串和其他基本类型的转换的功能主要在标准库 strconv 中提供。unicode 相关功能在 unicode 包中提供。encoding 包提供了一系列其他的编码支持。
