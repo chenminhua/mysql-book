@@ -1,6 +1,4 @@
-```
 sudo mysqladmin -p -u root version
-```
 
 ## 配置查看
 
@@ -8,9 +6,13 @@ mysql --help | grep my.cnf
 
 当几个配置文件中包含同一个参数，mysql 会以最后一个配置文件中的参数为准。
 
-## server 排查
+## 总览全局
 
+```
 show processlist;
+show global status;
+show engine innodb status;
+```
 
 ## 事务
 
@@ -58,6 +60,9 @@ show engine innodb status;
 
 刷脏页的时候是否将“邻居脏页一起刷掉”，mysql 8.0 开始默认设为0了。
 show variables like 'innodb_flush_neighbors';
+
+innodb_log_waits 值不等于 0 的话，表明 innodb log buffer 因为空间不足而等待
+show status like 'innodb_log_waits';
 ```
 
 ## binlog 相关
@@ -76,6 +81,9 @@ mysql-bin.index 文件是所有 bin log 文件的列表
 
 查看所有 binlog
 show binary logs;
+
+Binlog Cache 使用状况，如果 Binlog_cache_disk_use 值不为 0 ，可能需要调大 binlog_cache_size 大小。
+show status like 'Binlog_cache%';
 
 查看某一个 binlog 中的 events
 show binlog events in 'mysql-bin.000001';
@@ -196,3 +204,146 @@ innodb_file_per_table 配置，默认为 ON。一个表单独存一个文件更�
 如果我们用 delete 删除了整个表，则所有数据页都变成可复用，但磁盘文件不会变小。
 
 **delete 只是把记录的位置或者数据页标记为可复用，但磁盘文件的大小是不变的。也就是说，delete 命令不能回收表空间。**
+
+## 表相关
+
+```sql
+临时表状况：Created_tmp_disk_tables/Created_tmp_tables 比值最好不要超过 10%，如果 Created_tmp_tables 值比较大，可能是排序句子过多或者是连接句子不够优化
+show status like '%Created_tmp%';
+
+表大小
+SELECT TABLE_NAME, INDEX_LENGTH, DATA_LENGTH FROM information_schema.TABLES WHERE TABLE_NAME = 'table_name';
+show table status like 'table_name';
+
+SHOW variables like '%innodb_file_per_table%'; 如果为 on 则每个表有独立的表空间。回滚信息，插入缓冲索引，系统事务信息，二次写缓冲等等数据还是放在共享表空间中。
+
+SHOW VARIABLES WHERE Variable_Name = "datadir"; 查看数据目录
+
+ls -lh /var/lib/mysql/ibdata1 查看共享表空间大小
+```
+
+## 锁相关
+
+```sql
+show global status like '%lock%';
+Table_locks_waited/Table_locks_immediate=0.3% 如果这个比值比较大的话，说明表锁造成的阻塞比较严重
+Innodb_row_lock_waits innodb 行锁，太大可能是间隙锁造成的
+
+SHOW status like '%lock%';
+
+SHOW engine innodb status;
+
+查看表锁
+SHOW OPEN TABLES where In_use > 0;
+
+锁等待时间，默认是50s。
+SHOW VARIABLES like 'innodb_lock_wait_timeout';
+
+死锁检测是否开启
+SHOW VARIABLES like `innodb_deadlock_detect`;
+
+查锁
+select * from information_schema.INNODB_LOCKS;
+
+SHOW ENGINE INNODB STATUS; 看有没有死锁
+或者查看 information_schema 下的表 INNODB_TRX, INNODB_LOCKS, INNODB_LOCK_WAITS 来观察锁的信息。
+
+lock_id 锁 id
+lock_trx_id 事务 id
+lock_mode 锁的模式
+lock_type 锁的类型，行锁还是表锁
+lock_table 要加锁的表
+lock_index 锁住的索引
+lock_space 锁对象的 space id
+lock_page 事务锁定页的数量，如果为表锁则为 NULL
+lock_rec 事务锁定行的数量，如果为表锁则为 NULL
+lock_data 事务锁定记录的主键值，如果为表锁则为 NULL
+```
+
+## order by 相关
+
+排序可能在内存中完成，也可能需要使用外部排序，这取决于排序所需的内存和参数 sort_buffer_size。
+如果排序需要的数据量小于 sort_buffer_size，排序就在内存中完成，但是如果排序数据量太久，内存放不下，就利用磁盘临时文件辅助排序。
+
+可以从 number_of_tmp_files 中看到是否使用了临时文件，其表示排序过程中使用的临时文件数。如果 Mysql 担心排序内存太小，会影响排序效率，才会采用 rowid 算法，这样排序过程中一次可以排序更多行，但是需要回表取数据。
+
+```sql
+SHOW VARIABLES like 'sort_buffer_size';
+
+/_ 打开 optimizer_trace，只对本线程有效 _/
+SET optimizer_trace='enabled=on';
+
+/_ @a 保存 Innodb_rows_read 的初始值 _/
+select VARIABLE_VALUE into @a from performance_schema.session_status where variable_name = 'Innodb_rows_read';
+
+/_ 执行语句 _/
+select city, name,age from t where city='杭州' order by name limit 1000;
+
+/_ 查看 OPTIMIZER_TRACE 输出 _/
+SELECT * FROM `information_schema`.`OPTIMIZER_TRACE`\G
+
+/_ @b 保存 Innodb_rows_read 的当前值 _/
+select VARIABLE_VALUE into @b from performance_schema.session_status where variable_name = 'Innodb_rows_read';
+
+/_ 计算 Innodb_rows_read 差值 _/
+select @b-@a;
+```
+
+# 指标
+
+## TPS,QPS 统计
+
+```
+QPS:每秒请求数
+TPS:每秒事务处理数
+SHOW GLOBAL STATUS LIKE 'com_commit'\G; 只显示显式的提交和回滚
+show global status like 'com_rollback'\G;
+show global status like 'handler_commit'\G; 显示显式的和隐式的提交和回滚
+show global status like 'handler_rollback'\G;
+
+com_commit = show global status like 'com_commit';
+com_rollback = show global status like 'com_rollback';
+uptime = show global status like 'uptime';
+questions = show global status like 'questions';
+qps = questions / uptime;
+tps=(com_commit + com_rollback) / uptime;
+方法二
+show global status where variable_name in('com_select','com_insert','com_delete','com_update');
+```
+
+## innodb buffer 命中率
+
+```
+Innodb_buffer_pool_read_requests 表示 read 请求的次数，
+Innodb_buffer_pool_reads 表示从物理磁盘中读取数据的请求次数，
+
+所以 innodb buffer 的 read 命中率就可以这样得到：
+（Innodb_buffer_pool_read_requests - Innodb_buffer_pool_reads） / Innodb_buffer_pool_read_requests
+
+一般来讲这个命中率不会低于 99%，如果低于这个值的话就要考虑加大 innodb buffer pool。
+show variables like "%innodb_buffer_pool_size%"
+```
+
+## Table Cache 状态量
+
+```
+mysql> show global status like 'open%';
+比较 open_tables 与 opend_tables 值
+Open_tables ：代表当前打开表的数量。
+Opened_tables：代表自从 MySQL 启动后，打开表的数量。
+对于 innodb 存储引擎，开启表的独立表空间（innodb_file_per_table）打开 1 张表只需要 1 个文件描述符（一个.ibd 文件）。
+Open_files ：代表当前打开的文件。对应存储引擎（如：innodb）使用存储引擎自己内部函数打开的话，这个值是不会增加的。
+Opened_files：代表使用 MySQL 的 my_open()函数打开过的文件数。如果不是使用这个函数打开文件的话，这个值是不会增加的。
+```
+
+### Thread Cache 命中率
+
+```
+mysql> show global status like 'Thread%';
+mysql> show global status like 'Connections';
+Thread_cache_hits = (1 - Threads_created / connections ) \* 100%
+```
+
+### 复制延时量
+
+mysql > show slave status
