@@ -201,6 +201,11 @@ tcpdump -i eth0 -n tcp port 80
 
 # 内存
 
+- free, top 查看内存使用总体情况
+- vmstat 观察内存动态变化，观看 cache/buffer 的使用，swap 的大小等等。
+- 如果 cache/buffer 有异常，则使用 cachetop 观察各个进程的缓存读写命中。
+- sar 查看内存总体变化情况 sar -r 1
+
 ```sh
 free -h
 ```
@@ -215,6 +220,19 @@ buffers 是内核缓冲区用到的内存，对应 /proc/meminfo 中的 buffers 
 cache 是内核页缓存和 slab 用的内存，对应 /proc/meminfo 中的 cached 与 SReclaimable 之和。Cached 是从磁盘读取文件的页缓存，也就是用来缓存从文件读取的数据。这样，下次访问这些文件数据时，就可以直接从内存中快速获取，而不需要再次访问缓慢的磁盘。SReclaimable 是 Slab 的一部分。Slab 包括两部分，其中的可回收部分，用 SReclaimable 记录；而不可回收部分，用 SUnreclaim 记录。
 
 事实上，这里的 Buffer 是将要写入磁盘的数据的缓存，也可以用作读取磁盘数据的缓存。而 cache 是从文件读取数据的缓存，也可用作写文件的页缓存。
+
+```sh
+# cachestat 和 cachetop 都来自bcc-tools，基于内核的eBPF(extended Berkeley Packet Filters)
+cachestat 1 3
+# HITS，     表示缓存命中次数；
+# MISSES，   表示缓存未命中的次数。
+# DIRTIES    表示新增到缓存总的脏页数
+# BUFFERS_MB 表示BUFFERS大小
+# CACHED_MB  表示CACHE大小
+
+## 默认按照缓存的命中次数（HITS）排序，展示了每个进程的缓存命中情况。具体到每一个指标，这里的 HITS、MISSES 和 DIRTIES
+cachetop
+```
 
 磁盘是块设备文件，如果直接写磁盘则会跳过文件系统，而如果写文件则会利用文件系统，由文件系统来写磁盘。事实上这两种不同的读写方式使用的缓存就是分别为 buffer 和 cache。
 
@@ -258,6 +276,64 @@ echo "vm.swappiness = 0">> /etc/sysctl.conf
 sysctl -p
 ```
 
-# IO 问题
+# 文件系统与 IO 问题
+
+```sh
+# 查看文件系统
+df -Th
+
+# 查看inode使用情况（inode个数是有限的）
+df -i /dev/nvme0n1p2
+
+# man slabinfo
+# 查看所有目录项和各种文件系统索引节点的缓存情况
+cat /proc/slabinfo | grep -E '^#|dentry|inode'
+
+# 查看占用内存最多的缓存类型
+slabtop
+
+# iostat
+iosta -d -x 1
+
+# iotop 查到 io 出问题的进程
+iotop
+
+# strace 抓对应进程的系统调用
+```
 
 # 网络问题
+
+```
+ifconfig
+ip -s addr show dev eth0
+```
+
+- MTU 的默认大小是 1500.
+- 网络收发的字节数，包数，错误数以及丢包情况。这些指标可以反映网络 IO 是否有问题。
+
+ss 来查看套接字、网络栈、网络接口和路由表的信息。
+
+```sh
+# -l 表示只显示监听套接字
+# -t 表示只显示 TCP 套接字
+# -n 表示显示数字地址和端口（而不是名字）
+# -p 表示显示进程信息
+ss -ltnp
+# 连接状态 Recv-Q 表示接收队列长度（套接字缓冲还没被应用程序取走的字节数）
+# 连接状态 Send-Q 表示发送队列长度（还没被远端主机确认的字节数）
+# 监听状态 Recv-Q 表示 syn backlog 的当前值
+# 监听状态 Send-Q 表示 syn backlog 的最大值
+
+# 查看协议栈统计信息
+netstat -s
+ss -s
+
+# 查看网络吞吐
+sar -n DEV 1
+
+# 网卡带宽查看
+ethtool eth0 | grep Speed
+
+# 连通性和延迟查看
+ping -c3 114.114.114.114
+```
