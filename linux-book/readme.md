@@ -244,6 +244,20 @@ dd if=/dev/urandom of=/tmp/file bs=1M count=500
 dd if=/dev/urandom of=/dev/sdb1 bs=1M count=2048
 ```
 
+```sh
+查看系统swappiness
+sysctl vm.swappiness
+或者
+cat /proc/sys/vm/swappiness
+
+临时禁用swap
+sysctl -w vm.swappiness=0
+
+永久禁用swap
+echo "vm.swappiness = 0">> /etc/sysctl.conf
+sysctl -p
+```
+
 # IO 问题
 
 # 网络问题
