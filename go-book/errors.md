@@ -2,6 +2,8 @@
 
 go 不能够抛出异常，而是使用了 panic 和 recover 机制。记住，**你的代码中应当没有或者很少有 panic 的东西**
 
+recover only useful in defered statement
+
 ```go
 func main() {
   defer func () {
@@ -15,3 +17,5 @@ func main() {
   fmt.Println("won't display")
 }
 ```
+
+panic 执行前会先执行 defer

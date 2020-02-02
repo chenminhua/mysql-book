@@ -128,3 +128,39 @@ public class WordCount {
   }
 }
 ```
+
+Where: Windowing
+
+Beam provides a unified model that works in both batch and streaming because semantically batch is just a subset of streaming.
+
+### going streaming: When and How
+
+When: Triggers
+
+- Repeated update triggers
+- Completeness triggers (watermark)
+
+Repeated update triggers 是 streaming system 中最常见的 trigger。
+
+```java
+PCollection<KV<Team, Integer>> totals = input
+    .apply(Window.into(FixedWindows.of(TWO_MINUTES))
+                  .triggering(Repeatedly(AlignedDelay(TWO_MINUTES))))
+    .apply(Sum.integersPerKey())
+
+PCollection<KV<Team, Integer>> totals = input
+    .apply(Window.into(FixedWindows.of(TWO_MINUTES))
+                  .triggering(Repeatedly(UnalignedDelay(TWO_MINUTES))))
+    .apply(Sum.integersPerKey())
+```
+
+unaligned delays are typically the better choice for large-scale processing because they result in a more even load distribution over time.
+
+When: Watermarks
+
+```java
+PCollection<KV<Team, Integer>> totals = input
+    .apply(Window.into(FixedWindows.of(TWO_MINUTES))
+                  .triggering(AfterWatermark()))
+    .apply(Sum.integersPerKey())
+```

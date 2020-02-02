@@ -1,3 +1,8 @@
+golang 编译快
+
+[gobridge](https://github.com/gobridge/about-us/blob/master/README.md)
+[goplay](https://play.golang.org/)
+
 https://peter.bourgon.org/go-best-practices-2016/
 
 # 编写地道的 golang
@@ -124,6 +129,9 @@ cf := make(chan interface{})
 执行 goroutine 只需要极小的栈内存（大概 4-5kb）
 runtime.Gosched() 可以让一个 goroutine 让出 CPU 时间片
 
+- don't create goroutines in libraries.
+- when creating a goroutine, know how it will end.
+
 ## channel 是如何实现的
 
 ## 如何调度 goroutine
@@ -136,3 +144,228 @@ runtime.Gosched() 可以让一个 goroutine 让出 CPU 时间片
 UserType 应该放在一个 service-layer 的包里面
 使用 godoc, godoc -http=<hostport>
 use doc.go file
+
+## variable and constant
+
+- var / const
+- 分为 package 级别，函数级别。
+- package 级别 variable 大写表示 export，小写表示包内使用。
+- no private scope
+- 常量 const 在编译期被替换，所以其值必须在编译期被确定。
+- enumerated constants
+
+strconv pkg for strings
+
+## 基本类型
+
+- bool
+- integers, int8, int16, int32, int64, uint8, uint16, uint32, uint64。
+- floating point, float32, float64
+- complex numbers, complex64
+- text types, string, []byte, rune
+
+rune: utf-32, alias for int32, 需要用特殊方法处理
+
+## arrays and slices
+
+```go
+// 创建 array
+grades := [3]int{97, 85, 93}
+fmt.Printf("%v", grades)
+
+var matrix [3][3]int
+matrix[0] = [3]int{1, 0, 0}
+matrix[1] = [3]int{0, 1, 0}
+matrix[2] = [3]int{0, 0, 1}
+
+// 注意注意，golang 里面的 array 是 value,而不是指针,和 c 不一样。
+a := [...]int{1, 2, 3}
+b := a   // copy whole array a
+c := &a  // 现在是指针了
+
+// 创建 slice， slice 是 reference type 了
+a := []int{1,2,3,4,5,6,7,8,9}
+b = a[:]      // 1,2,3,4,5,6,7,8,9
+c := a[3:]    // 4,5,6,7,8,9
+d := a[:6]    // 1,2,3,4,5,6
+e := a[3:6]   // 4,5,6
+
+// use make make slice, len 3, cap 100
+a := make([]int, 3, 100)
+a = append(a, 1, 2)   // [0, 0, 0, 1, 2], len 5, cap 100
+
+// 需要非常注意，操作slice的时候会改掉下面的数组
+a := []int{1,2,3,4,5}
+b := append(a[:2], a[3:]...) // [1,2,4,5]
+fmt.Println(a)               // [1,2,4,5,5]
+```
+
+## map (指针类型)
+
+```go
+amap := map[string]int{
+  "K1": 3,
+  "K2": 12,
+}
+bmap := make(map[string]int)
+// map的key必须是value type,数组可以是key，但slice不可以是key。
+```
+
+## struct （值类型）
+
+```go
+type Doctor struct {
+  Number int
+  actorName string
+  companions []string
+}
+
+aDoctor := Doctor{
+  Number: 3,
+  actorName: "Jon Pertwee",
+  companions: []string {
+    "liz shaw",
+    "jo grant",
+    "sarah jane smith",
+  },
+}
+
+// 匿名struct
+bd := struct{name string}{name: "john per"}
+
+// embeded
+type Animal struct {
+  // 字段可以加tag
+  Name string   `required max:"100"`
+  Origin string
+}
+
+type Bird struct {
+  Animal Animal
+  SpeedKPH float32
+  CanFly bool
+}
+
+b := Bird{}
+b.Name = "Emu"
+```
+
+## switch
+
+```go
+switch 2 {
+  case 1, 3:
+    fmt.Println("one, three")
+  case 2, 4:
+    fmt.Println("two, four")
+  default:
+    fmt.Println("not 1,2,3,4")
+}
+
+switch i.(type) {
+  case int:
+    ....
+  case float64:
+    ...
+  case string:
+    ...
+  default: ...
+}
+```
+
+## loop
+
+```go
+for initializer; test; incrementer{}
+for test {}
+for {}
+
+for i, j := 0,0; i < 5; i, j = i + 1, j + 2 {
+  fmt.Println(i, j)
+}
+
+for {
+  ...
+  i++
+  if i == 10 {
+    break
+  }
+}
+
+for ... {
+  for ... {
+    ....
+    if ...{
+      break  // 注意，这个break只能break一层for loop
+    }
+  }
+}
+
+// 利用label来break
+Loop:
+  for ... {
+    for ... {
+      ....
+      if ...{
+        break Loop  // 这样才能完全break出去
+      }
+    }
+  }
+
+for k, v := range slice1 {}
+for k, v := range arr1 {}
+for k, v := range map1 {}
+
+str1 := "你好"
+for k, v := range str1 {
+	fmt.Println(k, string(v))
+}
+// 0 你
+// 3 好
+```
+
+## interface
+
+```go
+type Writer interface {
+  Write([]byte) (int, error)
+}
+
+type Closer interface {
+  Close() error
+}
+
+// 组合 interface
+type WriterCloser interface {
+  Writer
+  Closer
+}
+
+type BufferWriterCloser struct {
+  buffer *bytes.Buffer
+}
+
+func (bwc *BufferedWriterCloser) Write(data []byte) (int, error) {
+  ...
+}
+
+func (bwc *BufferedWriterCloser) Close() error {
+  ...
+}
+```
+
+#### empty interface
+
+```go
+var  myObj interface{} = NewBufferedWriterCloser()
+if wc, ok := myObj.(WriterCloser); ok {
+  ...
+}
+```
+
+- use many, small interfaces
+- Single method interfaces 非常有用，比如 io.Writer, io.Reader
+- interface{}
+- Don't export interfaces for types that will be consumed.
+- Do export interfaces for types that will be used by package.
+- Design functions and methods to receive interfaces whenever possible.
