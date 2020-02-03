@@ -346,3 +346,66 @@ flush tables with read lock;
 ```
 select * from t sys.innodb_lock_waits where locked_table=`'test'.'t'`\G
 ```
+
+## 子查询
+
+ANY, IN, SOME, ALL
+独立子查询
+独立子查询 / 相关子查询
+独立子查询是不依赖外部查询而运行的子查询。独立子查询更便于 sql 的调试。
+注意： 如果不是显式的列表定义如 IN ('a','b', 'c')，IN 子句会被 mysql 转换为 EXISTS 的相关子查询。
+
+```
+SELECT orderid, customerid, employeeid, orderdate
+FROM orders
+WHERE orderdate IN
+    (SELECT MAX(orderdate)
+        FROM orders
+        GROUP BY (DATE_FORMAT(orderdate, '%Y%m')));
+```
+
+被优化器转换为了
+
+```
+SELECT orderid, customerid, employeeid, orderdate
+FROM orders AS A
+WHERE EXISTS
+    (SELECT *
+        FROM orders
+        GROUP BY (DATE_FORMAT(orderdate, '%Y%m'))
+        HAVING MAX(orderdate) = A.OrderDate);
+```
+
+为了避免多一次的分组操作，可以写成
+
+```
+SELECT orderid, customerid, employeeid, orderdate
+FROM orders AS A
+WHERE EXISTS
+    (SELECT * FROM (SELECT MAX(orderdate) AS orderdate
+        FROM orders
+        GROUP BY (DATE_FORMAT(orderdate, '%Y%m'))) B
+        WHERE A.orderdate = B.orderdate)
+```
+
+#### 相关子查询
+
+```
+SELECT orderid, customerid, employeeid, orderdate
+FROM orders AS A
+WHERE orderdate =
+    (SELECT MAX(orderdate) FROM orders AS B
+        WHERE A.employeeid = B.employeeid);
+```
+
+改为使用派生表的方法来优化这个查询
+
+```
+SELECT
+    A.orderid, A.customerid, A.employeeid, B.orderdate
+FROM orders AS A,
+(SELECT employeeid, MAX(orderdate) AS orderdate FROM orders GROUP BY employeeid) AS B
+WHERE A.employeeid = B.employeeid AND A.OrderDate = B.Orderdate;
+```
+
+#### EXISTS, NOT EXISTS, IN, NOT IN
