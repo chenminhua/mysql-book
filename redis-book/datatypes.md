@@ -1,8 +1,8 @@
 ## 如何构建 Key
 
-key 不要太长，因为 lookup of the key may require several costly key-comparisons。
-key 不要太短，不要牺牲可读性。
-Try to stick with a schema. "Object-type:id", "user:1000:followers", "comment:1234:reply.to"
+- key 不要太长，因为 lookup of the key may require several costly key-comparisons。
+- key 不要太短，不要牺牲可读性。
+- 使用 schema 类似 "Object-type:id", "user:1000:followers", "comment:1234:reply.to"
 
 ```
 Exists k
@@ -61,7 +61,7 @@ BRPOP KEY1 KEY2 KEY3 5   阻塞式pop，可以同时等多个列表
 类似的当然还有BLPOP
 ```
 
-redis 在 blpop 命令处理过程时，首先会去查找 key 对应的 list，如果存在，则 pop 出数据响应给客户端。否则将对应的 key push 到 blocking_keys 数据结构当中，对应的 value 是被阻塞的 client。当下次 push 命令发出时，服务器检查 blocking_keys 当中是否存在对应的 key，如果存在，则将 key 添加到 ready_keys 链表当中，同时将 value 插入链表当中并响应客户端。
+在 blpop 命令处理过程时，首先会去查找 key 对应的 list，如果存在，则 pop 出数据响应给客户端。否则将对应的 key push 到 blocking_keys 数据结构当中，对应的 value 是被阻塞的 client。当下次 push 命令发出时，服务器检查 blocking_keys 当中是否存在对应的 key，如果存在，则将 key 添加到 ready_keys 链表当中，同时将 value 插入链表当中并响应客户端。
 
 因为 BRPOP 和 BLPOP 都可以同时 POP 多个 LIST，所以他们的返回除了 value，还要包含对应的 key。
 
@@ -79,7 +79,7 @@ smember myset
 sismember myset 3
 ```
 
-Sets are good for expressing relations between objects. 比如说，我们可以用 set 来实现 tag 的功能。
+Sets are good for expressing relations between objects. 我们可以用 set 来实现 tag 的功能。
 
 ## sorted set (zset)
 
