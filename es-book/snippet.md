@@ -37,9 +37,57 @@ PUT /_settings 或者 /indexname/_settings
 
 ## 查询
 
+如何衡量相关性？
+
+- Precision 查准率，尽可能返回较少无关文档
+- Recall 查全率，尽量返回较多相关文档
+- Ranking 是否能按照相关度进行排序
+
+#### URI SEARCH
+
+- q 指定查询语句，使用 query string syntax
+- df 默认字段，不指定时，会对所有字段进行查询
+- Sort 排序
+- from/size 用于分页
+- Profile 可以查看查询是如何被执行的
+
 ```
-在一个index中查询，默认返回10条
+GET /movies/_search?q=2012&df=title&sort=year:desc&from=0&size=10&timeout=1s
+{
+    "profile": true
+}
+
+泛查询，针对对_all，所有字段。
 GET /indexname/_search?q=sample'
+
+指定字段查询
+GET /indexname/_search?q=customer_first_name:Eddie
+
+pharse查询，使用引号
+GET /movies/_search?q=title:"Beautiful Mind"
+
+term 查询，title里面包含Beautiful和Mind
+GET /movies/_search?q=title:(Beautiful Mind)
+
+布尔操作
+AND / OR / NOT 或者 && / || / !, 必须大写， title:(matrix NOT reloaded)
+
+分组
++ 表示 must, - 表示 must_not, 比如 title:(+matrix -reloaded)
+
+范围查询，[]表示闭区间，{}表示开区间
+year:{2019 TO 2018], year:[* TO 2018]
+
+通配符查询
+title:mi?d
+title:be*
+
+正则表达
+title:[bt]oy
+
+模糊匹配与近似查询
+title:befutifl~1
+title:"lord rings"~2
 
 分页和排序
 from, size, sort, fields
@@ -54,7 +102,22 @@ GET /_search?q=sample'
 按照 id 查
 GET /indexname/_doc/1
 
-## 用 json 查
+```
+
+#### Request Body Search
+
+```sh
+POST /movies/_search
+{
+    "sort": [{"order_date": "desc"}],
+    "from": 10,
+    "size": 20,
+    "profile": true,
+    "query": {
+        "match_all": {}
+    }
+}
+
 curl -X POST 172.168.7.1:9200/shakespeare/_search?pretty -H 'Content-Type: application/json' -d '{
     "query": {
         "query_string": {
@@ -62,11 +125,7 @@ curl -X POST 172.168.7.1:9200/shakespeare/_search?pretty -H 'Content-Type: appli
         }
     }
 }'
-```
 
-#### term, 指定字段查找
-
-```
 curl -X POST 172.168.7.1:9200/shakespeare/_search?pretty -H 'Content-Type: application/json' -d '{
     "query": {
         "term": {
@@ -75,15 +134,67 @@ curl -X POST 172.168.7.1:9200/shakespeare/_search?pretty -H 'Content-Type: appli
     }
 }'
 
-```
+# 脚本字段
 
+# 使用match
+POST movies/_search
 {
-"query": {
-"term": {
-"name": "earthquake"
+    "query": {
+        "match": {
+            "title": "Last Christmas"
+        }
+    }
 }
+GET /movies/_search
+{
+    "query": {
+        "match": {
+            "title": {
+                "query": "Last Christmas",
+                "operator": "AND"
+            }
+        }
+    }
 }
+
+
+# 短语搜索 match phrase，match pharse的term之间是AND的关系，而match的term之间默认是OR的关系
+GET /movies/_search
+{
+    "query": {
+        "match_phrase": {
+            "title": {
+                "query": "one love"
+            }
+        }
+    }
 }
+### slop参数告诉match_phrase查询词条能够相隔多远时仍然将文档视为匹配。相隔多远的意思是，你需要移动一个词条多少次来让查询和文档匹配？
+GET /movies/_search
+{
+    "query": {
+        "match_phrase": {
+            "title": {
+                "query": "one love",
+                "slop": 1
+            }
+        }
+    }
+}
+
+# simple query string query
+### 类似query string,但是会忽略错误，Term之间的关系默认是OR，可以指定Operator。
+POST users/_search
+{
+    "query": {
+        "simple_query_string": {
+            "query": "chen minhua",
+            "fields": ["name"],
+            "default_operator": "AND"
+        }
+    }
+}
+```
 
 #### terms query
 
@@ -115,52 +226,114 @@ curl -X POST 172.168.7.1:9200/shakespeare/_search?pretty -H 'Content-Type: appli
 }
 }
 
-## 数据类型
+## Mapping
 
-text，keyword
-long, integer, short, byte, double, float, half_float, scaled_float
-date
-boolean
-binary
-integer_range, float_range, long_range, double_range, date_range
+- Mapping 定义索引中的字段名称和数据类型。
+- 字段，倒排索引的相关配置。（analyzed or not, analyzer）
+- Mapping 会把 JSON 文档映射成 lucence 所需要的扁平格式。
+- 一个 Mapping 属于一个索引的 Type，7.0 开始不需要指定 type 信息（一个索引只能有一个 type）。
 
-Array datatype：Array support does not require a dedicated type
-Object datatype：object for single JSON objects
-Nested datatype：nested for arrays of JSON objects
+- text，keyword
+- long, integer, short, byte, double, float, half_float, scaled_float
+- date
+- boolean
+- binary
+- integer_range, float_range, long_range, double_range, date_range
+- Array datatype：Array support does not require a dedicated type
+- Object datatype：object for single JSON objects
+- Nested datatype：nested for arrays of JSON objects
+- Geo-point datatype：geo_point for lat/lon points
+- Geo-Shape datatype：geo_shape for complex shapes like polygons
+- IP datatype：ip for IPv4 and IPv6 addresses
 
-Geo-point datatype：geo_point for lat/lon points
-Geo-Shape datatype：geo_shape for complex shapes like polygons
+es 中其实不提供专门的数组类型，但是任何字段都可以包含多个相同类型的数值。
 
-IP datatype：ip for IPv4 and IPv6 addresses
+#### 定义 mapping
 
-## date
+```sh
+PUT movies {
+    "mappings": {
+        // define your mappings here
+    }
+}
+```
 
-PUT /company/employee/\_mapping
+为了减少工作量和出错概率，你可以这样建 mapping：创建一个临时的 index，写入样本数据；然后访问 mapping API 拿到动态 mapping 定义；最后用此配置创建你的索引。
+
+```sh
+# 控制字段不被索引
+PUT users
 {
-"employee": {
-"properties": {
-"name": {
-"type": "text"
-},
-"age": {
-"type": "long"
-},
-"join_time": {
-"type": "date",
-"format": "MM DD YYYY"
-},
-"advanced": {
-"type": "boolean"
-},
-"tags": {
-"type": "text"
+    "mappings": {
+        "properties": {
+            "mobile": {
+                "type": "text",
+                "index": false
+            }
+        }
+    }
 }
-}
-}
-}
+```
 
-POST /company/employee/1?pretty
-{"name": "chen", "join_time": "11 04 2016", "advanced": false, "age": 28, "tags": ["ceo", "boss"]}
+#### dynamic mapping
+
+- 在写入文档时，如果索引不存在，会自动创建索引。
+- dynamic mapping 的机制，使得我们无需手动定义 mappings。
+- es 会根据文档信息推算出字段类型。有时候会推算的不对。
+- 推算错误会导致有些功能无法正常使用。
+
+```sh
+PUT mapping_test/_doc/1
+{
+    "firstName": "Chen",
+    "lastName": "Minhua",
+    "loginDate": "2019-07-24T10:29:12.103Z"
+}
+# 查看mapping
+GET mapping_test/_mapping
+```
+
+#### 能否更改 mapping 字段的类型
+
+如果是新增字段
+
+- dynamic 设为 true 时，可以。
+- dynamic 设为 false 时，mapping 不会被更新，新增字段不会被索引，但信息会出现在\_source 中
+- dynamic 设为 strict 时，文档无法写入。
+
+如果是已有字段，一旦有数据写入，就不能修改 mapping。如果要修改字段类型，必须 reindex。
+
+```sh
+PUT movies/_mapping
+{
+    "dynamic": "false"
+}
+```
+
+#### 多字段类型
+
+```
+"properties": {
+    "qrcode_display": { -
+        "type": "text",
+        "fields": { -
+            "keyword": { -
+                "type": "keyword",
+                "ignore_above": 256
+            }
+        }
+    },
+}
+```
+
+#### mapping 中配置自定义 analyzer，char_filter, tokenizer, filter
+
+https://github.com/geektime-geekbang/geektime-ELK/tree/master/part-1/3.12-%E5%A4%9A%E5%AD%97%E6%AE%B5%E7%89%B9%E6%80%A7%E5%8F%8AMapping%E4%B8%AD%E9%85%8D%E7%BD%AE%E8%87%AA%E5%AE%9A%E4%B9%89Analyzer
+
+#### 精确值 vs 全文本
+
+精确值： exact value, es 中使用 keyword，不需要进行分词处理。
+全文本： full text, es 中使用 text，会被分词处理。
 
 ## 索引方式
 

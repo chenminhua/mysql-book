@@ -1,8 +1,8 @@
 # 类加载
 
-类的加载指的是将类读入到内存中，将其放在 Jvm 的方法区内，然后在堆创建一个 java.lang.Class 对象，用来封装类在方法区内的数据结构。类的加载的最终产品是位于堆中的 Class 对象，Class 对象封装了类在方法区内的数据结构，并且向 Java 程序员提供了访问方法区内的数据结构的接口。
-
-类加载器负责在运行时动态加载 java 类。
+- 类加载：将类读入到 Jvm 的方法区内，然后在堆创建一个 j·ava.lang.Class 对象，用来封装类在方法区内的数据结构。
+- 堆中的 Class 对象封装了类在方法区内的数据结构，并且向 Java 程序员提供了访问方法区内的数据结构的接口。
+- 类加载器负责在运行时动态加载 java 类。
 
 ```java
 // BootstrapLoader搜寻 System.getProperty("sun.boot.library.path”)中的类，
@@ -24,9 +24,8 @@ System.out.println(loader.getParent().getParent());
 
 - AppClassLoader 从 classpath 里的文件 load。
 - ExtClassLoader 加载核心 java 类的 extension 类。通常是 JAVA_HOME/lib/ext 下的类。
-- BootstrapClassLoader 是 native 的，不是 java class。
-- BootstrapClassLoader 负责加载 ClassLoader 这个类，加载 JDK 内部的类，尤其是 rt.jar 以及其他在 JAVA_HOME/jre/lib 下的核心库。
-- 子 classloader 加载的类可见父 classloader 加载的类，反之不行。所以通过 AppClassLoader 加载的类可见 ExtClassLoader 加载的类，反之不行。
+- BootstrapClassLoader 是 native 的，不是 java class。负责加载 JDK 内部的类，尤其是 rt.jar。
+- 子 classloader 加载的类可见父 classloader 加载的类，反之不行。
 
 java.lang.ClassLoader.loadClass() 负责加载类定义。如果这个类还没 Load，会委托其父 ClassLoader 来加载，如果父的类加载器找不到这个类，子的类加载器再来加载，如果子的类加载器也不能加载这个类，就会抛出 NoClassDefFoundError 或者 ClassNotFoundException. 使用委派模型的目的是避免重复加载 Java 类型。
 
@@ -168,16 +167,6 @@ try {
 } catch (Exception e) {
     e.printStackTrace();
 }
-
-```
-
-### Class 对象
-
-加载和连接过程的结果是一个 Class 对象。Class 对象可以和反射 API 一起实现对方法，域，构造方法等类成员的间接访问。
-
-```java
-Class c1 = String.class;
-Class c2 = "hello".getClass();
 ```
 
 ##### 依赖注入中的类加载器 （spring 的玩法）

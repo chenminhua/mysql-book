@@ -26,7 +26,7 @@ Writer: OutputStreamWriter, FileWriter, BufferedWriter, PipedWriter...
 - Reader, Writer 则是操作字符的，适用于从文件读取或写入文本信息。
 - BufferedOutputStream 等带缓冲的实现，可避免频繁的磁盘读写，提高 IO 效率。
 
-## NIO
+## NIO (Buffer, Channel, Selector)
 
 - Buffer 是高效的数据容器。
 - Channel 类似 Linux 上的文件描述符，用来支持批量 IO 的操作。
@@ -34,8 +34,72 @@ Writer: OutputStreamWriter, FileWriter, BufferedWriter, PipedWriter...
 
 File 或者 Socket 是比较高层次的抽象，而 Channel 则是更加操作系统底层的一种抽象，这也使得 NIO 得以充分利用现代操作系统底层机制，获得特定场景的性能优化，例如，DMA（Direct Memory Access）等。不同层次的抽象是相互关联的，我们可以通过 Socket 获取 Channel，反之亦然。
 
-```java
+- 通过 Selector.open()创建一个 Selector，作为类似调度员的角色。
+- 然后创建 ServerSocketChannel，向 Selector 注册并指定 SelectionKey.OP_ACCEPT，表明其关注新的连接。
+- Selector 阻塞在 select 操作，当有 Channel 接入请求，就会被唤醒。
+- 通过 SocketChannel 和 Buffer 进行数据操作
 
+## 文件拷贝
+
+- 在程序中，使用缓存等机制，合理减少 IO 次数。
+- 使用 transferTo 等机制，减少上下文切换和额外 IO 操作。
+- 尽量减少不必要的转换过程，比如编解码；对象序列化和反序列化，比如操作文本文件或者网络通信，如果不是过程中需要使用文本信息，可以考虑不要将二进制信息转换成字符串，直接传输二进制信息。
+
+## NIO Buffer
+
+Buffer 是 NIO 操作数据的基本工具，Java 为每种原始数据类型都提供了相应的 Buffer 实现（布尔除外）.
+
+```java
+ByteBuffer, MappedByteBuffer
+CharBuffer
+DoubleBuffer
+FloatBuffer
+IntBuffer
+LongBuffer
+ShortBuffer
+```
+
+Buffer 有几个基本属性：
+
+- capcity，也就是数组的长度。
+- position，要操作的数据起始位置。
+- limit，相当于操作的限额。在读取或者写入时，limit 的意义很明显是不一样的。比如，读取操作时，很可能将 limit 设置到所容纳数据的上限；而在写入时，则会设置容量或容量以下的可写限度。
+- mark，记录上一次 postion 的位置，默认是 0，算是一个便利性的考虑，往往不是必须的。
+
+前面三个是我们日常使用最频繁的，我简单梳理下 Buffer 的基本操作：
+
+- 我们创建了一个 ByteBuffer，准备放入数据，capcity 当然就是缓冲区大小，而 position 就是 0，limit 默认就是 capcity 的大小。
+- 当我们写入几个字节的数据时，position 就会跟着水涨船高，但是它不可能超过 limit 的大小。
+- 如果我们想把前面写入的数据读出来，需要调用 flip 方法，将 position 设置为 0，limit 设置为以前的 position 那里。
+- 如果还想从头再读一遍，可以调用 rewind，让 limit 不变，position 再次设置为 0。
+
+http://tutorials.jenkov.com/java-nio/buffers.html
+
+## Direct Buffer 和垃圾收集
+
+- Direct Buffer：Java 提供了堆内和堆外（Direct）Buffer，我们可以以它的 allocate 或者 allocateDirect 方法直接创建。
+
+- MappedByteBuffer：它将文件按照指定大小直接映射为内存区域，当程序访问这个内存区域时将直接操作这块儿文件数据，省去了将数据从内核空间向用户空间传输的损耗。我们可以使用[FileChannel.map](https://docs.oracle.com/javase/9/docs/api/java/nio/channels/FileChannel.html#map-java.nio.channels.FileChannel.MapMode-long-long-)创建 MappedByteBuffer，它本质上也是种 Direct Buffer。
+
+在实际使用中，Java 会尽量对 Direct Buffer 仅做本地 IO 操作，对于很多大数据量的 IO 密集操作，可能会带来非常大的性能优势。但是请注意，Direct Buffer 创建和销毁过程中，都会比一般的堆内 Buffer 增加部分开销，所以通常都建议用于长期使用、数据较大的场景。
+
+使用 Direct Buffer，我们需要清楚它对内存和 JVM 参数的影响。首先，因为它不在堆上，所以 Xmx 之类参数，其实并不能影响 Direct Buffer 等堆外成员所使用的内存额度，我们可以使用下面参数设置大小：
+
+    -XX:MaxDirectMemorySize=512M
+
+这意味着我们在计算 Java 可以使用的内存大小的时候，不能只考虑堆的需要，还有 Direct Buffer 等一系列堆外因素。
+另外，大多数垃圾收集过程中，都不会主动收集 Direct Buffer，它的销毁往往要拖到 full GC 的时候，所以使用不当很容易导致 OutOfMemoryError。对于 Direct Buffer 的回收，我有几个建议：
+
+- 在应用程序中，显式地调用 System.gc()来强制触发。
+- 另外一种思路是，**在大量使用 Direct Buffer 的部分框架中，框架会自己在程序中调用释放方法，Netty 就是这么做的（PlatformDependent0）**。
+- 重复使用 Direct Buffer。
+
+### MappedByteBuffer
+
+### code snippet
+
+```java
+// 普通的socket
 public class DemoServer extends Thread {
     private ServerSocket serverSocket;
 
@@ -74,8 +138,8 @@ public class DemoServer extends Thread {
             bufferedReader.lines().forEach(s -> System.out.println(s));
         }
     }
- }
-// 简化实现，不做读取，直接发送字符串
+}
+
 class RequestHandler extends Thread {
     private Socket socket;
     RequestHandler(Socket socket) {
@@ -91,12 +155,8 @@ class RequestHandler extends Thread {
         }
     }
 }
-```
 
-NIO 版本
-
-```java
-
+// NIO SERVER
 public class NIOServer extends Thread {
     public void run() {
         try (Selector selector = Selector.open();
@@ -126,18 +186,9 @@ public class NIOServer extends Thread {
     }
    // 省略了与前面类似的main
 }
-```
 
-- 通过 Selector.open()创建一个 Selector，作为类似调度员的角色。
-- 然后创建 ServerSocketChannel，向 Selector 注册并指定 SelectionKey.OP_ACCEPT，表明其关注新的连接。
-- Selector 阻塞在 select 操作，当有 Channel 接入请求，就会被唤醒。
-- 通过 SocketChannel 和 Buffer 进行数据操作
-
-### AIO
-
-```java
-
-AsynchronousServerSocketChannel serverSock =        AsynchronousServerSocketChannel.open().bind(sockAddr);
+// AIO
+AsynchronousServerSocketChannel serverSock = AsynchronousServerSocketChannel.open().bind(sockAddr);
 serverSock.accept(serverSock, new CompletionHandler<>() { //为异步操作指定CompletionHandler回调函数
     @Override
     public void completed(AsynchronousSocketChannel sockChannel, AsynchronousServerSocketChannel serverSock) {
@@ -148,11 +199,8 @@ serverSock.accept(serverSock, new CompletionHandler<>() { //为异步操作指�
     }
   // 省略其他路径处理方法...
 });
-```
 
-### 文件拷贝
-
-```java
+// 通过stream拷贝文件
 public static void copyFileByStream(File source, File dest) throws
         IOException {
     try (InputStream is = new FileInputStream(source);
@@ -165,6 +213,7 @@ public static void copyFileByStream(File source, File dest) throws
     }
 }
 
+// 通过transferTo拷贝文件
 public static void copyFileByChannel(File source, File dest) throws
         IOException {
     try (FileChannel sourceChannel = new FileInputStream(source)
@@ -179,51 +228,3 @@ public static void copyFileByChannel(File source, File dest) throws
     }
 }
 ```
-
-对于 Copy 的效率，这个其实与操作系统和配置等情况相关，总体上来说，NIO transferTo/From 的方式可能更快，因为它更能利用现代操作系统底层机制，避免不必要拷贝和上下文切换。
-
-- 在程序中，使用缓存等机制，合理减少 IO 次数。
-- 使用 transferTo 等机制，减少上下文切换和额外 IO 操作。
-- 尽量减少不必要的转换过程，比如编解码；对象序列化和反序列化，比如操作文本文件或者网络通信，如果不是过程中需要使用文本信息，可以考虑不要将二进制信息转换成字符串，直接传输二进制信息。
-
-### NIO Buffer
-
-Buffer 是 NIO 操作数据的基本工具，java 为每种原始数据类型都提供了相应的 buffer 实现。
-
-```java
-ByteBuffer, MappedByteBuffer
-CharBuffer
-DoubleBuffer
-FloatBuffer
-IntBuffer
-LongBuffer
-ShortBuffer
-```
-
-Buffer 基本属性
-
-```java
-capacity
-position: 要操作的数据起始位置。
-limit: 相当于操作的限额。在读取或者写入时，limit 的意义很明显是不一样的。
-mark: 记录上一次position的位置，默认为0。
-```
-
-Buffer 用法
-
-- 创建 ByteBuffer，capacity 是缓冲区大小，position 就是 0，limit 默认等于 capacity。
-- 写入数据时，position 会升高，但不会超过 limit。
-- 如果想把写入的数据读出来，需调用 flip 方法，将 limit 设为 position，position 设置为 0。
-- 如果还想从头再读一遍，可以调用 rewind，让 limit 不变，position 再次设置为 0。
-
-http://tutorials.jenkov.com/java-nio/buffers.html
-
-### Direct Buffer 和垃圾收集
-
-Direct Buffer 是堆外内存。在实际使用中 java 会尽量对 direct buffer 仅做本地 IO 操作。使用 Direct Buffer，我们需要清楚它对内存和 JVM 参数的影响。首先，因为它不在堆上，所以 Xmx 之类参数，其实并不能影响 Direct Buffer 等堆外成员所使用的内存额度，我们可以使用下面参数设置大小
-
-```java
--XX:MaxDirectMemorySize=512M
-```
-
-### MappedByteBuffer

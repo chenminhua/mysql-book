@@ -5,7 +5,6 @@ zk 是一个分布式数据一致性的解决方案。分布式应用可以基�
 - Zk 没有使用 master/slave，而是引入了 leader，follower，observer 三种角色。
 - 只有 leader 提供写服务，其他只能提供读服务。
 - Observer 不参与选举，可以在不影响写性能的情况下提升集群的读性能。
-
 - 客户端和服务端间有 TCP 长连接，连接建立后，客户端和服务端间通过心跳检测保持有效会话。
 - sessionTimeout 用来设置客户端会话超时时间。
 - 有序性是 zookeeper 中非常重要的一个特性，所有的更新都是全局有序的，每个更新都有一个唯一的时间戳，这个时间戳称为 zxid（Zookeeper Transaction Id）。而读请求只会相对于更新有序，也就是读请求的返回结果中会带有这个 zookeeper 最新的 zxid。

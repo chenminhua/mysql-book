@@ -1,18 +1,18 @@
-一维状态的 DP (斐波那契与爬楼梯问题)
+## 一维 DP
 
-LC 70 https://leetcode-cn.com/problems/climbing-stairs/
+[LC 70](https://leetcode-cn.com/problems/climbing-stairs/) 送分题，直接写出 dp[i] = dp[i-1] + dp[i-2]，搞定。
 
-这是个送分题，直接写出 dp[i] = dp[i-1] + dp[i-2]，搞定。
+[LC 746](https://leetcode-cn.com/problems/min-cost-climbing-stairs/) 稍微复杂一点，给每个台阶增加了 cost，但还是很容易写出状态转移方程 dp[i] = Math.min(dp[i-1] + cost[i-1], dp[i-2] + cost[i-2]);
 
-LC 746 https://leetcode-cn.com/problems/min-cost-climbing-stairs/
+[198. 打家劫舍](https://leetcode-cn.com/problems/house-robber/) 也是送分题，直接写出 dp[i] = Math.max(dp[i-1], dp[i-2] + nums[i-1])，搞定。
 
-这题稍微复杂一点，给每个台阶增加了 cost，但还是很容易写出状态转移方程 dp[i] = Math.min(dp[i-1] + cost[i-1], dp[i-2] + cost[i-2]);
+[213 打家劫舍变形题](https://leetcode-cn.com/problems/house-robber-ii/)，说的是这个数组是个环，其实说白了就是第一家和最后一家不能一块儿偷，所以其实就是把第一家去掉后走一遍 dp，把最后一家去掉后走一遍 dp，然后两个结果取大的那个就行了。
 
-类似的题还有 「198. 打家劫舍」https://leetcode-cn.com/problems/house-robber/ 这也是送分题，直接写出 dp[i] = Math.max(dp[i-1], dp[i-2] + nums[i-1])，搞定。这题有个变形是 213 题，说的是这个数组是个环，其实说白了就是第一家和最后一家不能一块儿偷，所以其实就是把第一家去掉后走一遍 dp，把最后一家去掉后走一遍 dp，然后两个结果取大的那个就行了。
+[LC 1218](https://leetcode-cn.com/problems/longest-arithmetic-subsequence-of-given-difference/) 最长等差子序列，也是一维 DP，可以很容易写出 dp[x] = dp[x-d] + 1; 但是要利用一下 hashMap 辅助状态转移方程。
 
-LC 1218 最长等差子序列，也是一维 DP，可以很容易写出 dp[x] = dp[x-d] + 1; 但是要利用一下 hashMap 辅助状态转移方程。
+这种题都是一维状态的动态规划，相对比较简单。难点往往在于想到用 dp，以及写出状态转移方程。
 
-这种题都是一维状态的动态规划，相对比较简单。难点往往在于想到用 dp，以及写出状态转移方程。比如 LC 139 word break，给定一个字符串和一个字典（字符串数组），问该字符串是否能用字典里面的词组合而成。这题的代码非常简洁，难点在于想到用 dp[i]表示 s[:i]是否能用字典内单词组成。
+[LC 139 ](https://leetcode-cn.com/problems/word-break/)，word break，给定一个字符串和一个字典（字符串数组），问该字符串是否能用字典里面的词组合而成。这题的代码非常简洁，难点在于想到用 dp[i]表示 s[:i]是否能用字典内单词组成。
 
 ```java
 for (int i = 1; i<=s.length; i++) {
@@ -24,16 +24,17 @@ for (int i = 1; i<=s.length; i++) {
 }
 ```
 
-二维状态的 DP (不同路径数，最小路径和)
-LC 62 https://leetcode-cn.com/problems/unique-paths/
+## 二维状态的 DP (不同路径数，最小路径和)
 
-LC 63 https://leetcode-cn.com/problems/unique-paths-ii/
+[LC 62](https://leetcode-cn.com/problems/unique-paths/), [LC 63](https://leetcode-cn.com/problems/unique-paths-ii/), [LC 64](https://leetcode-cn.com/problems/minimum-path-sum/)
 
-LC 64 https://leetcode-cn.com/problems/minimum-path-sum/
+这三题其实是一模一样的路子，也都是送分题。就是把状态从一维变成二维罢了。上面三道题看起来比较容易想到二维 DP，因为本身题目中就有一个二维对象存在。
 
-这三题其实是一模一样的路子，也都是送分题。就是把状态从一维变成二维罢了。上面三道题看起来比较容易想到二维 DP，因为本身题目中就有一个二维对象存在。但是有一类题也非常常见，但是不太容易想到二维 DP，这类题目看上去是在两个一维数组中查找某个最优解，因此有时不太容易想到二维 DP。但是事实上，两个一维数组一交叉不就变成二维了么。这种问题的关键就是想到 dp[i][j] = solution for (A[:i], B[:j])。
-
-可以练习一下 LC 72 / 97 / 115 / 712，这几题的代码都很简单，但是对新手来说，写出来还是不容易的。
+[LC72](https://leetcode-cn.com/problems/edit-distance/),
+[LC97](https://leetcode-cn.com/problems/interleaving-string/),
+[LC115](https://leetcode-cn.com/problems/distinct-subsequences/),
+[LC712](https://leetcode-cn.com/problems/minimum-ascii-delete-sum-for-two-strings/)
+这一类题也非常常见，但是不太容易想到二维 DP，这类题目看上去是在两个一维数组中查找某个最优解，因此有时不太容易想到二维 DP。但是事实上，两个一维数组一交叉不就变成二维了么。这种问题的关键就是想到 dp[i][j] = solution for (A[:i], B[:j])。
 
 72 题是两个词的编辑距离，比如 horse 和 ros，可以通过将 ros 的 r 改成 h，然后添加 r 和 e，一共三步来完成转移。定义 dp[i][j]为 w1[:i]和 w2[:j]的编辑距离。
 
@@ -58,7 +59,7 @@ else dp[i][j] = dp[i][j-1]
 
 712 给定两个字符串，找到使两个字符串相等所需删除字符的 ASCII 值的最小和。比如 s1 = sea，s2 = eat，删除 s 和 t 可使两个字符串相等。
 
-**这道题其实可以反过来看，只要将两个字符串的 ASSII 和相加再减去两倍的最大共同子序列和就得到了答案。我们可以定义 dp[i][j] 为 s1[:i]和 s2[:j]的最大公共子序列和。**
+**这道题其实可以反过来看，只要将两个字符串的 ASCII 和相加再减去两倍的最大共同子序列和就得到了答案。我们可以定义 dp[i][j] 为 s1[:i]和 s2[:j]的最大公共子序列和。**
 
 ```java
 if (s1[i] == s2[j])
