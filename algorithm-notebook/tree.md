@@ -76,15 +76,13 @@ return root;
 ```java
 // LC 98 校验一棵二叉树是否为BST
 public boolean isValidBST(TreeNode root) {
-    return helper(root, null, null);
+    return isValid(root, null, null);
 }
-private boolean helper(TreeNode root, Integer max, Integer min) {
+private boolean isValid(TreeNode root, Integer max, Integer min) {
     if (root == null) return true;
     if (max != null && root.val >= max) return false;
     if (min != null && root.val <= min) return false;
-    if (! helper(root.left, root.val ,min)) return false;
-    if (! helper(root.right, max, root.val)) return false;
-    return true;
+    return isValid(root.left, root.val, min) && isValid(root.right, max, root.val);
 }
 
 // LC 669 剪裁二叉树，将树中大于R或者小于L的部分全部剪掉并返回。

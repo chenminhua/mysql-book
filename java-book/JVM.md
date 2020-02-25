@@ -111,3 +111,78 @@ C2：Server 编译器，面向的是对峰值性能有要求的服务器端程�
 java7 开始采用分层编译的方式：热点方法首先会被 C1 编译，而后热点方法中的热点会进一步被 C2 编译。
 为了不干扰应用的正常运行，HotSpot 的即时编译是放在额外的编译线程中进行的。
 理论上讲，即时编译后的 Java 程序的执行效率，是可能超过 C++程序的。这是因为与静态编译相比，即时编译拥有程序的运行时信息，并且能够根据这个信息做出相应的优化。
+
+### java 内存泄露问题
+
+- memory leak through static field
+- unclosed resource
+- improper equals() and hashcode()
+- inner classes that reference outer classes
+- finalize()
+- threadLocal 没有 remove。
+
+##### Memory Leak through static field
+
+除非 ClassLoader 可以被 gc 回收，不然 static 变量是不会被回收的。
+
+```java
+public class StaticTest {
+    public static List<Double> list = new ArrayList<>();
+    public void populateList() {
+        for (int i = 0; i < 10000000; i++) {
+            list.add(Math.random());
+        }
+        Log.info("Debug Point 2");
+    }
+
+    public static void main(String[] args) {
+        Log.info("Debug Point 1");
+        new StaticTest().populateList();
+        Log.info("Debug Point 3");
+    }
+}
+```
+
+##### Unclosed Resource
+
+每开一个新的连接或新 stream，jvm 都会分配内存。忘记关闭它们会导致这些内存无法回收。
+
+##### Improper equals() and hashCode() implementations
+
+```java
+public class Person {
+    public String name;
+    public Person(String name) {
+        this.name = name;
+    }
+}
+@Test
+public void givenMap_whenEqualsAndHashCodeNotOverridden_thenMemoryLeak() {
+    Map<Person, Integer> map = new HashMap<>();
+    for(int i=0; i<100; i++) {
+        map.put(new Person("jon"), 1);
+    }
+    Assert.assertFalse(map.size() == 1);
+}
+
+```
+
+##### Inner classes that reference outer classes
+
+- 非静态内部类总是会有一个指向其外部类的引用。
+- 如果我们在应用中有一个静态内部类的对象，这会导致外部的对象无法被 GC。
+- 应该考虑使用 static class。
+
+##### finalize() methods
+
+- 如果一个类的 finalize()被 overriden 了，这个类的对象就不能被 instantly gc 了。
+- 我们应该避免 override finalize() 方法。
+
+##### ThreadLocals
+
+- 每个线程都有一个指向其对应 threadLocal 变量的引用。
+- threadlocal 会在线程死掉后被 gc。
+- 我们常常使用 thread pool，这会导致线程常常是常驻的，不会死。
+- 这也导致了 threadLocal 不会被 gc。
+- good practice: clean-up ThreadLocals when they’re no longer used.
+- It’s even better to consider ThreadLocal as a resource that needs to be closed in a finally block just to make sure that it is always closed.
