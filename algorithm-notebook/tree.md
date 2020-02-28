@@ -319,7 +319,32 @@ public TreeNode constructFromPrePost(int[] pre, int[] post) {
 }
 ```
 
-LC 105 从前序和中序遍历恢复二叉树，思路也差不多。
+```java
+int[] preorder;
+int[] inorder;
+HashMap<Integer, Integer> idx_map = new HashMap<Integer, Integer>();
+
+public TreeNode buildTree(int[] preorder, int[] inorder) {
+    this.preorder = preorder;
+    this.inorder = inorder;
+    int size =  preorder.length;
+    for (int i = 0; i < size; i++) {
+        idx_map.put(inorder[i], i);
+    }
+    return helper(0, size - 1, 0, size -1);
+}
+
+private TreeNode helper(int p_start, int p_end, int i_start, int i_end) {
+    if (p_start > p_end) return null;
+    int rootval = preorder[p_start];
+    TreeNode root = new TreeNode(preorder[p_start]);
+    int in_idx = idx_map.get(rootval);
+    int leftsize = in_idx - i_start;  // 左子树大小
+    if (leftsize > 0) root.left = helper(p_start + 1, p_start + leftsize, i_start, in_idx - 1);
+    if (i_end - in_idx > 0) root.right = helper(p_start + leftsize + 1, p_end, in_idx + 1, i_end);
+    return root;
+}
+```
 
 ### 在二叉树内进行搜索
 
@@ -471,3 +496,20 @@ LC 863 二叉树中所有离目标节点距离为 k 的节点。
 ## 其他
 
 关于树还有一些高阶的数据结构一定要掌握，比如 Trie Tree, Segment Tree。后面我会另写文章来讲解它们的实现与使用场景。
+
+## LC199 二叉树的右视图
+
+```java
+public List<Integer> rightSideView(TreeNode root) {
+    List<Integer> res = new LinkedList<>();
+    helper(root, 0, res);
+    return res;
+}
+
+private void helper(TreeNode root, int level, List<Integer> res) {
+    if (root == null) return;
+    if (res.size() == level) res.add(root.val);
+    helper(root.right, level+1, res);
+    helper(root.left, level+1, res);
+}
+```
