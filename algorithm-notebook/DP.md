@@ -222,3 +222,25 @@ if s[i] == ')':
     else if (s[i - dp[i-1] - 1] == '('):
         dp[i] = dp[i-1] + dp[i-dp[i-1]-2] + 2
 ```
+
+## LC264 丑数 II
+
+```java
+public int nthUglyNumber(int n) {
+    int[] nums = new int[n];
+    int idx2 = 0, idx3 = 0, idx5 = 0;
+    nums[0] = 1;
+    int idx = 1;
+    while(idx < n) {
+        int n2 = nums[idx2] * 2;
+        int n3 = nums[idx3] * 3;
+        int n5 = nums[idx5] * 5;
+        int nmin = Math.min(n2, Math.min(n3, n5));
+        if (nmin == n2) { idx2++; nums[idx] = n2; }
+        if (nmin == n3) { idx3++; nums[idx] = n3; }
+        if (nmin == n5) { idx5++; nums[idx] = n5; }
+        idx++;
+    }
+    return nums[n-1];
+}
+```

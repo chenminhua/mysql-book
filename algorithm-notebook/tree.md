@@ -52,6 +52,15 @@ public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {
     return l;
 }
 
+BST的最近公共祖先
+public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {
+    if (root.val<p.val && root.val<q.val)
+        root=lowestCommonAncestor(root.right,p,q);
+    else if (root.val>p.val && root.val>q.val)
+        root=lowestCommonAncestor(root.left,p,q);
+    return root;
+}
+
 合并两个二叉树 LC617
 public TreeNode mergeTrees(TreeNode t1, TreeNode t2) {
     if (t1 == null) return t2;
@@ -534,5 +543,25 @@ public List<List<Integer>> levelOrder(TreeNode root) {
         dir = -dir;
     }
     return res;
+}
+```
+
+## 剑指 offer 33 验证二叉搜索树的后序遍历序列
+
+```java
+public boolean verifyPostorder(int [] postorder) {
+    if (postorder.length <= 2) return true;
+    return verifySeq(postorder, 0, postorder.length-1);
+}
+private boolean verifySeq(int[] postorder, int start, int end) {
+    if (start >= end) return true;
+    int idx = start;
+    while (idx < end) {
+        if (postorder[idx] > postorder[end]) break;
+        idx++;
+    }
+    for (int j = idx; j < end; j++)
+        if (postorder[j] < postorder[end]) return false;
+    return verifySeq(postorder, start, idx-1) && verifySeq(postorder, idx, end-1);
 }
 ```
