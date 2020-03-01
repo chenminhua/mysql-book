@@ -297,7 +297,7 @@ private TreeNode builder(String[] arr, int lo, int hi) {
 
 ### 重建二叉树
 
-LC 889 从先序和后序构建二叉树。
+LC889 从先序和后序构建二叉树。
 
 先序遍历的第一个节点肯定是根节点，而先序遍历的第二个节点肯定是左子树的根节点。我们就可以分别在前序遍历中和后序遍历中找到左子树的范围和右子树的范围，递归调用这个重建方法即可。
 
@@ -320,28 +320,24 @@ public TreeNode constructFromPrePost(int[] pre, int[] post) {
 ```
 
 ```java
-int[] preorder;
 int[] inorder;
-HashMap<Integer, Integer> idx_map = new HashMap<Integer, Integer>();
-
+int[] preorder;
+Map<Integer, Integer> idx_map = new HashMap<>();
 public TreeNode buildTree(int[] preorder, int[] inorder) {
-    this.preorder = preorder;
-    this.inorder = inorder;
-    int size =  preorder.length;
-    for (int i = 0; i < size; i++) {
-        idx_map.put(inorder[i], i);
-    }
-    return helper(0, size - 1, 0, size -1);
+    if (preorder.length == 0) return null;
+    this.preorder = preorder; this.inorder = inorder;
+    for (int i = 0; i < inorder.length; i++) this.idx_map.put(inorder[i], i);
+    return buildTree(0, inorder.length-1, 0, inorder.length-1);
 }
-
-private TreeNode helper(int p_start, int p_end, int i_start, int i_end) {
-    if (p_start > p_end) return null;
-    int rootval = preorder[p_start];
-    TreeNode root = new TreeNode(preorder[p_start]);
-    int in_idx = idx_map.get(rootval);
-    int leftsize = in_idx - i_start;  // 左子树大小
-    if (leftsize > 0) root.left = helper(p_start + 1, p_start + leftsize, i_start, in_idx - 1);
-    if (i_end - in_idx > 0) root.right = helper(p_start + leftsize + 1, p_end, in_idx + 1, i_end);
+// 记住这个函数签名
+public TreeNode buildTree(int pstart, int pend, int istart, int iend) {
+    if (pstart > pend) return null;
+    int rootval = preorder[pstart];
+    TreeNode root = new TreeNode(rootval);
+    int in_index = idx_map.get(rootval); // 找到 inorder 中rootval的位置
+    int leftsize = in_index - istart;
+    root.left = buildTree(pstart + 1, pstart + leftsize, istart, in_index-1);
+    root.right = buildTree(pstart + leftsize + 1, pend, in_index+1, iend);
     return root;
 }
 ```
@@ -511,5 +507,32 @@ private void helper(TreeNode root, int level, List<Integer> res) {
     if (res.size() == level) res.add(root.val);
     helper(root.right, level+1, res);
     helper(root.left, level+1, res);
+}
+```
+
+## 剑指 offer 32 锯齿形遍历二叉树
+
+```java
+public List<List<Integer>> levelOrder(TreeNode root) {
+    List<List<Integer>> res=new ArrayList<>();
+    if(root==null) return res;
+    Queue <TreeNode> queue=new LinkedList<TreeNode> ();
+    queue.add(root);
+    int dir = 1;
+    while(!queue.isEmpty()) {
+        int size = queue.size();
+        List<Integer> list = new ArrayList<>();
+        while(size >  0) {
+            TreeNode n = queue.remove();
+            if (dir > 0) {list.add(n.val);}
+            else {list.add(0, n.val);}
+            if (n.left != null) queue.add(n.left);
+            if (n.right != null) queue.add(n.right);
+            size--;
+        }
+        res.add(list);
+        dir = -dir;
+    }
+    return res;
 }
 ```

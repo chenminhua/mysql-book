@@ -199,6 +199,7 @@ LC 10 正则表达式匹配
 给你一个字符串 s 和一个字符规律 p，请你来实现一个支持'.' 和 '\*' 的正则表达式匹配。这题可以用动态规划的关键在于：1. 想到用 dp[i][j]表示 s[i:]与 p[j:]是否能匹配。
 
 ```java
+// 思路：先举例画出表格， s = "aab"，p = "c*a*."，利用例子找到规律。
 int tlen = text.length(), plen = pattern.length();
 for (int i = tlen; i >= 0; i--)
     for (int j = plen - 1; j >= 0; j--)
