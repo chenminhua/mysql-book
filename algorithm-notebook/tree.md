@@ -565,3 +565,27 @@ private boolean verifySeq(int[] postorder, int start, int end) {
     return verifySeq(postorder, start, idx-1) && verifySeq(postorder, idx, end-1);
 }
 ```
+
+## 剑指 offer 26 树的子结构
+
+```java
+public boolean isSubStructure(TreeNode A, TreeNode B) {
+    if (B == null) return false;
+    return searchRoot(A, B);
+}
+
+public boolean searchRoot(TreeNode a, TreeNode b) {
+    if (a == null) return false;
+    if (a.val == b.val && isSub(a, b)) return true;
+    return searchRoot(a.left, b) || searchRoot(a.right, b);
+}
+
+public boolean isSub(TreeNode a, TreeNode b) {
+    if (a == null) {
+        if (b == null) return true;
+        return false;
+    }
+    if (b == null) return true;
+    return a.val == b.val && isSub(a.left, b.left) && isSub(a.right, b.right);
+}
+```
