@@ -1,7 +1,7 @@
 # 类加载
 
-- 类加载：将类读入到 Jvm 的方法区内，然后在堆创建一个 j·ava.lang.Class 对象，用来封装类在方法区内的数据结构。
-- 堆中的 Class 对象封装了类在方法区内的数据结构，并且向 Java 程序员提供了访问方法区内的数据结构的接口。
+- 类加载：将类读入方法区，然后在堆创建一个 java.lang.Class 对象，用来封装类在方法区内的数据结构。
+- 堆中的 Class 对象封装了类在方法区内的数据结构，并向外提供了访问方法区内的数据结构的接口。
 - 类加载器负责在运行时动态加载 java 类。
 
 ```java
@@ -19,7 +19,6 @@ System.out.println(loader);
 System.out.println(loader.getParent());
 // Bootstrap ClassLoader 启动类加载器(用 C 语言实现，所以此处返回 null)
 System.out.println(loader.getParent().getParent());
-
 ```
 
 - AppClassLoader 从 classpath 里的文件 load。
