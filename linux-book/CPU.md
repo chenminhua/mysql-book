@@ -21,7 +21,7 @@ cpu 分成三个部分：运算单元，数据单元和控制单元。运算单�
 ```sh
 yum install sysstat / apt-get install sysstat
 
--P用于指定处理器，-P ALL表示查看所有cpu，1表示每秒打印一次记录
+-P用于指定处理器，-P ALL表示查看所有cpu，1表示每秒打印一次记录。查看每个CPU
 mpstat -P ALL 1
 
 观察平均负载的变化
@@ -31,7 +31,9 @@ watch -d uptime
 pidstat -u 1
 ```
 
-cpu 平均负载高可能是 CPU 密集型进程导致的。但 cpu 平均负载高不代表 cpu 利用率高，也可能是 IO wait 高。uptime 可以用于查看平均负载，当发现负载高了，可以用 mpstat 查看负载升高原因，并利用 pidstat 定位导致问题的具体进程。
+- cpu 平均负载高可能是 CPU 密集型进程导致的。
+- **但 cpu 平均负载高不代表 cpu 利用率高，也可能是 IO wait 高。**
+- **uptime 可以用于查看平均负载，当发现负载高了，可以用 mpstat 查看负载升高原因，并利用 pidstat 定位导致问题的具体进程。**
 
 ## 上下文切换
 
@@ -40,11 +42,11 @@ cpu 平均负载高可能是 CPU 密集型进程导致的。但 cpu 平均负载
 - 进程切换。进程上下文包括虚拟内存、栈、全局变量等用户空间资源，还包括内核堆栈，寄存器等内核空间状态。
 - 进程内系统调用，从用户态到内核态，再从内核态到用户态，发生了两次上下文切换。相比进程切换，系统调用不需要处理栈和虚拟内存等信息。
 - 线程切换。不需要切换虚拟内存，但是栈和寄存器的保存和加载还是需要的。
-- 中断。为了快速响应硬件的事件，中断处理会打断进程的正常调度和执行，转而调用中断处理程序。，此时需要将进程当前的状态保存下来，这样在中断结束后，进程仍可从原来的状态恢复运行。
+- 中断。为了快速响应硬件事件，中断处理会打断进程执行，转而调用中断处理程序。此时要保存进程当前状态，在中断结束后，进程仍可恢复运行。
 
 线程是调度的基本单位，而进程是资源拥有的基本单位。
 
-每次上下文切换都需要几十纳秒到数微秒的 cpu 时间。特别在进程上下文切换多的情况下，很容易导致大量 CPU 时间浪费，导致平均负载升高。另外，linux 通过 TLB 管理虚拟内存到物理内存的映射，进程的上下文切换需要更新虚拟内存，因此 TLB 也需要刷新，内存的访问也会变慢。特别是对于共享 TLB 的多处理器，刷新缓存不但影响了当前处理器的进程，还会影响共享缓存的其他处理器。通常 TLB 是不共享的
+每次上下文切换都需要几十纳秒到数微秒的 cpu 时间。特别在进程上下文切换多的情况下，很容易导致大量 CPU 时间浪费，导致平均负载升高。另外，**linux 通过 TLB 管理虚拟内存到物理内存的映射，进程的上下文切换需要更新虚拟内存，因此 TLB 也需要刷新，内存的访问也会变慢。**特别是对于共享 TLB 的多处理器，刷新缓存不但影响了当前处理器的进程，还会影响共享缓存的其他处理器。通常 TLB 是不共享的。
 
 PS: 每个 CPU core 都可以在它的上下文下运行，每个 core 都有独立的 MMU。通常 TLB 也是每个核私有的。
 
@@ -63,7 +65,7 @@ pidstat -w 1  # cswch 表示每秒自愿的上下文切换次数。 nvcswch表�
 ```
 
 - 自愿上下文切换是指进程无法获取所需资源，导致的上下文切换。比如 IO、内存等系统资源不足，就会发生资源上下文切换。
-- 非资源上下文切换则是进程被抢占等。
+- 非自愿上下文切换则是进程被抢占等。
 
 模拟
 
@@ -101,7 +103,7 @@ watch -d cat /proc/interrupts
 
 - 用户 CPU 和 Nice CPU 高，说明用户态进程占用了较多的 CPU，所以应该着重排查进程的性能问题。
 - 系统 CPU 高，说明内核态占用了较多的 CPU，所以应该着重排查内核线程或者系统调用的性能问题。
-- I/O 等待 CPU 高，说明等待 I/O 的时间比较长，所以应该着重排查系统存储是不是出现了 I/O 问题。
+- I/O wait CPU 高，说明等待 I/O 的时间比较长，所以应该着重排查系统存储是不是出现了 I/O 问题。
 - 软中断和硬中断高，应该着重排查内核中的中断服务程序。
 
 top 不区分用户态和内核态，而 pidstat 可以帮助我们看得更详细。
@@ -213,143 +215,4 @@ sar -n DEV 1
 tcpdump -i eth0 -n tcp port 80
 
 # 发现有很多SYN包，就定位到了SYN FLOOD问题，那么就封掉对应的IP就行了。
-```
-
-# 内存
-
-- free, top 查看内存使用总体情况
-- vmstat 观察内存动态变化，观看 cache/buffer 的使用，swap 的大小等等。
-- 如果 cache/buffer 有异常，则使用 cachetop 观察各个进程的缓存读写命中。
-- sar 查看内存总体变化情况 sar -r 1
-
-```sh
-free -h
-```
-
-- used 已经使用的内存，包含共享内存
-- free 未使用内存
-- shared 共享内存
-- buff/cache 缓存和缓冲区大小
-- available 新进程可用内存大小（包含 free 和可回收的缓存）
-
-buffers 是内核缓冲区用到的内存，对应 /proc/meminfo 中的 buffers 的值。buffers 是对原始磁盘块的临时存储，也就是用来缓存磁盘的数据，通常不会特别大（20MB 左右）。这样，内核就可以把分散的写集中起来，统一优化磁盘的写入，比如可以把多次小的写合并成单次大的写等等。
-cache 是内核页缓存和 slab 用的内存，对应 /proc/meminfo 中的 cached 与 SReclaimable 之和。Cached 是从磁盘读取文件的页缓存，也就是用来缓存从文件读取的数据。这样，下次访问这些文件数据时，就可以直接从内存中快速获取，而不需要再次访问缓慢的磁盘。SReclaimable 是 Slab 的一部分。Slab 包括两部分，其中的可回收部分，用 SReclaimable 记录；而不可回收部分，用 SUnreclaim 记录。
-
-事实上，这里的 Buffer 是将要写入磁盘的数据的缓存，也可以用作读取磁盘数据的缓存。而 cache 是从文件读取数据的缓存，也可用作写文件的页缓存。
-
-```sh
-# cachestat 和 cachetop 都来自bcc-tools，基于内核的eBPF(extended Berkeley Packet Filters)
-cachestat 1 3
-# HITS，     表示缓存命中次数；
-# MISSES，   表示缓存未命中的次数。
-# DIRTIES    表示新增到缓存总的脏页数
-# BUFFERS_MB 表示BUFFERS大小
-# CACHED_MB  表示CACHE大小
-
-## 默认按照缓存的命中次数（HITS）排序，展示了每个进程的缓存命中情况。具体到每一个指标，这里的 HITS、MISSES 和 DIRTIES
-cachetop
-```
-
-磁盘是块设备文件，如果直接写磁盘则会跳过文件系统，而如果写文件则会利用文件系统，由文件系统来写磁盘。事实上这两种不同的读写方式使用的缓存就是分别为 buffer 和 cache。
-
-```sh
-top
-```
-
-- VIRT 进程虚拟内存大小，只要是进程申请过的内存，即使还没有真正分配物理内存，也会计算在内。
-- RES 常驻内存大小，也就是实际使用的内存。（不包括 swap 和共享内存）。
-- SHR 共享内存，比如与其他进程共同使用的内存，加载的动态链接库以及程序代码段等等。
-- %MEM 进程使用的物理内存占系统总内存的百分比。
-
-```sh
-# 清理文件页，目录项，Inodes等各种缓存
-echo 3 > /proc/sys/vm/drop_caches
-
-# vmstat 查看内存使用
-vmstat 1
-
-# 读文件
-dd if=/tmp/file of=/dev/null
-# 直接读磁盘
-dd if=/dev/sda1 of=/dev/null bs=1M count=1024
-# 写文件
-dd if=/dev/urandom of=/tmp/file bs=1M count=500
-# 直接写磁盘
-dd if=/dev/urandom of=/dev/sdb1 bs=1M count=2048
-```
-
-```sh
-查看系统swappiness
-sysctl vm.swappiness
-或者
-cat /proc/sys/vm/swappiness
-
-临时禁用swap
-sysctl -w vm.swappiness=0
-
-永久禁用swap
-echo "vm.swappiness = 0">> /etc/sysctl.conf
-sysctl -p
-```
-
-# 文件系统与 IO 问题
-
-```sh
-# 查看文件系统
-df -Th
-
-# 查看inode使用情况（inode个数是有限的）
-df -i /dev/nvme0n1p2
-
-# man slabinfo
-# 查看所有目录项和各种文件系统索引节点的缓存情况
-cat /proc/slabinfo | grep -E '^#|dentry|inode'
-
-# 查看占用内存最多的缓存类型
-slabtop
-
-# iostat
-iosta -d -x 1
-
-# iotop 查到 io 出问题的进程
-iotop
-
-# strace 抓对应进程的系统调用
-```
-
-# 网络问题
-
-```
-ifconfig
-ip -s addr show dev eth0
-```
-
-- MTU 的默认大小是 1500.
-- 网络收发的字节数，包数，错误数以及丢包情况。这些指标可以反映网络 IO 是否有问题。
-
-ss 来查看套接字、网络栈、网络接口和路由表的信息。
-
-```sh
-# -l 表示只显示监听套接字
-# -t 表示只显示 TCP 套接字
-# -n 表示显示数字地址和端口（而不是名字）
-# -p 表示显示进程信息
-ss -ltnp
-# 连接状态 Recv-Q 表示接收队列长度（套接字缓冲还没被应用程序取走的字节数）
-# 连接状态 Send-Q 表示发送队列长度（还没被远端主机确认的字节数）
-# 监听状态 Recv-Q 表示 syn backlog 的当前值
-# 监听状态 Send-Q 表示 syn backlog 的最大值
-
-# 查看协议栈统计信息
-netstat -s
-ss -s
-
-# 查看网络吞吐
-sar -n DEV 1
-
-# 网卡带宽查看
-ethtool eth0 | grep Speed
-
-# 连通性和延迟查看
-ping -c3 114.114.114.114
 ```

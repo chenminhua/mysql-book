@@ -4,21 +4,13 @@
 - java.io,基于流模型，提供了 File 抽象，输入输出流等等。同步阻塞。
 - java.nio,提供了 Channel, Selector, Buffer 等抽象。
 - java.nio 支持多路复用，同步非阻塞 IO 程序。
-- JAVA7 引入了异步非阻塞 IO 方式（AIO），异步 IO 基于事件和回调机制。
-
-异步往往和回调联系在一起。
+- JAVA7 引入了异步非阻塞 IO 方式（AIO），异步 IO 基于事件和回调机制。(异步往往和回调联系在一起)
 
 ```java
-File
-
-RandomAccessFile
-
+File, RandomAccessFile
 InputStream: FileInputStream, BufferInputStream, ByteArrayInputStream, ObjectInputStream, PiepInputStream...
-
 OutputStream: FileOutputStream, BufferOutputStream, ByteArrayOutputStream, ObjectOutputStream, PiepOutputStream...
-
 Reader: InputStreamReader, FileReader, BufferedReader, PipeReader...
-
 Writer: OutputStreamWriter, FileWriter, BufferedWriter, PipedWriter...
 ```
 
@@ -47,19 +39,7 @@ File 或者 Socket 是比较高层次的抽象，而 Channel 则是更加操作�
 
 ## NIO Buffer
 
-Buffer 是 NIO 操作数据的基本工具，Java 为每种原始数据类型都提供了相应的 Buffer 实现（布尔除外）.
-
-```java
-ByteBuffer, MappedByteBuffer
-CharBuffer
-DoubleBuffer
-FloatBuffer
-IntBuffer
-LongBuffer
-ShortBuffer
-```
-
-Buffer 有几个基本属性：
+Buffer 是 NIO 操作数据的基本工具，Java 为每种原始数据类型都提供了相应的 Buffer 实现（布尔除外）。Buffer 有几个基本属性：
 
 - capcity，也就是数组的长度。
 - position，要操作的数据起始位置。
@@ -88,13 +68,12 @@ http://tutorials.jenkov.com/java-nio/buffers.html
     -XX:MaxDirectMemorySize=512M
 
 这意味着我们在计算 Java 可以使用的内存大小的时候，不能只考虑堆的需要，还有 Direct Buffer 等一系列堆外因素。
-另外，大多数垃圾收集过程中，都不会主动收集 Direct Buffer，它的销毁往往要拖到 full GC 的时候，所以使用不当很容易导致 OutOfMemoryError。对于 Direct Buffer 的回收，我有几个建议：
+
+大多数 GC 都不会主动收集 Direct Buffer，它的销毁往往要拖到 full GC 的时候，建议：
 
 - 在应用程序中，显式地调用 System.gc()来强制触发。
-- 另外一种思路是，**在大量使用 Direct Buffer 的部分框架中，框架会自己在程序中调用释放方法，Netty 就是这么做的（PlatformDependent0）**。
+- 另外一种思路是，**在大量使用 Direct Buffer 的部分框架中，框架会自己在程序中调用释放方法，Netty 就是这么做的**。
 - 重复使用 Direct Buffer。
-
-### MappedByteBuffer
 
 ### code snippet
 

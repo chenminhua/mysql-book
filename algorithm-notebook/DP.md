@@ -122,7 +122,7 @@ if (arr[i] > arr[i+1]) decdp[i] = decdp[i+1] + 1
 ans = min(ans, incdp[i] + decdp[i] + 1)
 ```
 
-# 背包问题
+## 背包问题
 
 对于一组不同重量、不可分割的物品，我们需要选择一些装入背包，在满足背包最大重量限制的前提下，背包中物品总重量的最大值是多少呢？
 
@@ -156,7 +156,7 @@ for (int i = 1; i < n; ++i) {
 }
 ```
 
-# 卡特兰数
+## 卡特兰数
 
 LC 96 给定一个 n，问以 1 到 n 这 n 个数组成的 BST 有多少
 
@@ -164,7 +164,7 @@ LC 96 给定一个 n，问以 1 到 n 这 n 个数组成的 BST 有多少
 dp[i] = sum{dp[j]*dp[i-j-1]} while j in [0, i)
 ```
 
-# LC 312 戳气球
+## LC312 戳气球
 
 https://leetcode-cn.com/problems/burst-balloons/
 
@@ -194,7 +194,7 @@ for (int len = 2; len < nums.length; len++) {
 return dp[0][newNums.length - 1];
 ```
 
-LC 10 正则表达式匹配
+## LC10 正则表达式匹配
 
 给你一个字符串 s 和一个字符规律 p，请你来实现一个支持'.' 和 '\*' 的正则表达式匹配。这题可以用动态规划的关键在于：1. 想到用 dp[i][j]表示 s[i:]与 p[j:]是否能匹配。
 
@@ -213,7 +213,7 @@ for (int i = tlen; i >= 0; i--)
         }
 ```
 
-LC 32 最长有效括号序列
+## LC32 最长有效括号序列
 
 ```java
 if s[i] == ')':

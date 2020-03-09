@@ -174,9 +174,6 @@ zrank hackers "Claude Shannon"
 zrank hackers "Alan Turing"
 (integer) 0
 // also zrevrank
-
-
-
 ```
 
 ## Hash

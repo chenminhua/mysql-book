@@ -14,7 +14,7 @@ update T set c=c+1 where ID=2;
 4. 然后返回 server 层，在 server 层记录 binlog。
 5. 然后再通知 innodb 将 redo log 的状态改为 commited，并提交事务。
 
-总结起来就是：查数据，写内存，写 redo log(prepared)，写 binlog，提交事务(redo log committed)。注意，整个步骤里面我们都不用去找磁盘上的那条数据修改，只要在 innodb 写 redo log 和内存，然后在 server 层写 binlog。
+总结起来就是：查数据，写内存（直接改内存内的数据页或者写 change buffer），写 redo log(prepared)，写 binlog，提交事务(redo log committed)。**注意，整个步骤里面我们都不用去找磁盘上的那条数据修改**，只要在 innodb 写 redo log 和内存，然后在 server 层写 binlog。
 
 ### 为啥 redo log 要做两阶段提交？
 
@@ -26,15 +26,17 @@ update T set c=c+1 where ID=2;
 
 ## binlog 写入机制
 
-事务执行过程中，先把日志写到 binlog cache（感觉其实是 buffer，而不是 cache），事务提交时再把 binlog cache 写入 binlog 文件中。
-
-系统给 binlog cache 分配了一片内存，每个线程一个，参数 binlog_cache_size 用于控制单个线程内 binlog cache 所占内存的大小。如果超过这个参数规定大小，就要暂存到磁盘。事务提交时，binlog cache 中的完整事务写入 binlog，并清空 binlog cache。事实上，binlog cache 写入到 binlog 文件也分两步。第一步是写入文件系统的 page cache，第二步才是 fsync 到磁盘。
-
-如果你的 io 是瓶颈，可以考虑将 sync_binlog 设大一点，但是就会存在异常重启时丢失事务 binlog 的风险。一般不建议将 sync_binlog 设置为 0，会丢日志。
+- 事务执行过程中，先把日志写到 binlog cache，事务提交时再把 binlog cache 写入 binlog 文件中。
+- 系统给 binlog cache 分配了一片内存，每个线程一个，参数 binlog_cache_size 用于控制单个线程内 binlog cache 所占内存的大小。
+- 如果超过这个参数规定大小，就要暂存到磁盘。事务提交时，binlog cache 中的完整事务写入 binlog，并清空 binlog cache。
+- 事实上，binlog cache 写入到 binlog 文件也分两步。第一步是写入文件系统的 page cache，第二步才是 fsync 到磁盘。
+- **若 io 是瓶颈，可将 sync_binlog 设大，但会存在异常重启时丢失 binlog 的风险。不建议将 sync_binlog 设置为 0，会丢日志。**
 
 ## 如何让数据库恢复到半个月内任意一秒？
 
-要做到这一点，我们需要做两件事。第一：我们需要保存半个月来所有的 binlog；第二：我们要定期做全库备份。建议将**sync_binlog**设置为 1，这样每次事务的 binlog 都持久化到磁盘，保证 mysql 异常重启不丢 binlog。
+- 第一：我们需要保存半个月来所有的 binlog；
+- 第二：我们要定期做全库备份。
+- 建议将**sync_binlog**设置为 1，这样每次事务的 binlog 都持久化到磁盘，保证 mysql 异常重启不丢 binlog。
 
 假如你做了以上两点，然后有一天不小心删库了，你希望回到删库前一秒，就可以
 
@@ -48,23 +50,22 @@ update T set c=c+1 where ID=2;
 
 # redo log
 
-## 为啥要有 redo log
+**为啥要有 redo log： 为了让 update 更快。而 redo log 是一种 WAL，先写日志以后再落盘。避免了频繁的磁盘读写。**
 
-为了让 update 更快。而 redo log 是一种 WAL，先写日志以后再落盘。避免了频繁的磁盘读写。
+### redo log 是如何实现的
 
-## redo log 是如何实现的
-
-innodb 的 redo log 是固定大小的，比如可以配置一组 4 个文件，每个 1G，每次从头开始写，写到末尾又回到开头循环写。redo log 维护两个指针，一个叫 write pos，一个叫 checkpoint。每次写 redo log 就把 write pos 往前推；每次根据 redo log 完成落盘，就把 checkpoint 往前推。如果 write pos 追上了 checkpoint，就要停止新的写，把 checkpoint 往前推。也就是 flush 一些脏页到磁盘。(脏页就是有更新，但还没 flush 到磁盘)
-
-默认在事务提交时，将 redo log 缓冲写入 redo log 文件，并调用 fsync 操作。参数 innodb_flush_log_at_trx_commit 用来控制是否每次都在提交时写入文件。
-
-注意，这里有提到两个落盘操作，他们是不同的，一个是按照 redo log 记录的内容更新磁盘上的数据，因为在写数据库的时候并没有直接更新磁盘，而只更新了内存，并记录了 redo log。另一个是 redo log 自己的落盘，是为了 crash safe。
-
-有写请求时，innodb 先把记录写到 redo log，并更新内存，然后等系统比较空闲的时候，再将其更新到磁盘里面。平时执行很快的更新操作，其实就是在写内存和日志，而 MySQL 偶尔“抖”一下的那个瞬间，可能就是在刷脏页（flush）。
-
-redo log 并没有记录数据页的完整数据，所以它并没有能力自己去更新磁盘数据页。对于正常运行的情况，刷脏页的这个过程，甚至与 redo log 毫无关系。而在崩溃恢复场景中，InnoDB 如果判断到一个数据页可能在崩溃恢复的时候丢失了更新，就会将它读到内存，然后让 redo log 更新内存内容。更新完成后，内存页变成脏页，就回到了第一种情况的状态。
-
-redo log buffer 就是一块内存，用来先存 redo 日志的。也就是说，在执行第一个 insert 的时候，数据的内存被修改了，redo log buffer 也写入了日志。但是，真正把日志写到 redo log 文件（文件名是 ib_logfile+数字），是在执行 commit 语句的时候做的。单独执行一个更新语句的时候，InnoDB 会自己启动一个事务，在语句执行完成的时候提交。过程跟上面是一样的，只不过是“压缩”到了一个语句里面完成。
+- 比如可以配置一组 4 个文件，每个 1G，每次从头开始写，写到末尾又回到开头循环写。
+- 维护 write pos 和 checkpoint 两个指针。每次写 redo log 就把 wp 往前推；每次根据 redo log 完成落盘，就把 checkpoint 往前推。
+- 如果 write pos 追上了 checkpoint，就要停止新的写，把 checkpoint 往前推。也就是 flush 一些脏页到磁盘（**刷脏页**）。
+- **默认在事务提交时，将 redo log 缓冲写入 redo log 文件，并调用 fsync 操作。参数为 innodb_flush_log_at_trx_commit**
+- 这里有两个不同的落盘操作，一个是按照 redo log 记录的内容更新磁盘上的数据，另一个是 redo log 自己的落盘。
+- **平时执行很快的更新操作，其实就是在写内存和日志，而 MySQL 偶尔“抖”一下的那个瞬间，可能就是在刷脏页（flush）。**
+- 要尽量避免刷脏页导致抖动，就要合理地设置 innodb_io_capacity 的值，并且**平时要多关注脏页比例，不要让它经常接近 75%**。
+- **脏页比例是通过 Innodb_buffer_pool_pages_dirty/Innodb_buffer_pool_pages_total 得到的**
+- redo log 没有记录数据页的完整数据，所以它没法自己去更新磁盘数据页。对于正常运行的情况，刷脏页过程，甚至与 redo log 毫无关系。
+- 在崩溃恢复场景中，如果判断到一个数据页可能在崩溃恢复的时候丢失了更新，就会将它读到内存，然后让 redo log 更新内存内容（变回脏页）。
+- redo log buffer 用来先存 redo log，真正把日志写到 redo log 文件（ib_logfile+数字），是在 commit 时。
+- 单独执行一个更新语句的时候，InnoDB 会自己启动一个事务，在语句执行完成的时候提交。过程跟上面是一样的。
 
 ## 什么情况会引发数据库的 flush 过程呢？
 
@@ -87,10 +88,6 @@ redo log buffer 就是一块内存，用来先存 redo 日志的。也就是说�
 如果你的主机磁盘用的是 SSD，但是却设置了很低的 innodb_io_capacity，InnoDB 认为你的机器很烂，所以刷脏页刷得很慢，这样就造成了脏页累积，影响了查询和更新性能。
 
 InnoDB 的刷盘速度要参考这两个因素：**一个是脏页比例，一个是 redo log 写盘速度。**参数 innodb_max_dirty_pages_pct 是脏页比例上限，默认值是 75%。
-
-现在你知道了，InnoDB 会在后台刷脏页，而刷脏页的过程是要将内存页写入磁盘。所以，无论是你的查询语句在需要内存的时候可能要求淘汰一个脏页，还是由于刷脏页的逻辑会占用 IO 资源并可能影响到了你的更新语句，都可能是造成你从业务端感知到 MySQL“抖”了一下的原因。
-
-要尽量避免这种情况，你就要合理地设置 innodb_io_capacity 的值，并且**平时要多关注脏页比例，不要让它经常接近 75%**。**脏页比例是通过 Innodb_buffer_pool_pages_dirty/Innodb_buffer_pool_pages_total 得到的**
 
 一旦一个查询请求需要在执行过程中先 flush 掉一个脏页时，这个查询就可能要比平时慢了。而 MySQL 中的一个机制，可能让你的查询会更慢：在准备刷一个脏页的时候，如果这个数据页旁边的数据页刚好是脏页，就会把这个“邻居”也带着一起刷掉；而且这个把“邻居”拖下水的逻辑还可以继续蔓延，也就是对于每个邻居数据页，如果跟它相邻的数据页也还是脏页的话，也会被放到一起刷。在 InnoDB 中，innodb_flush_neighbors 参数就是用来控制这个行为的，值为 1 的时候会有上述的“连坐”机制，值为 0 时表示不找邻居，自己刷自己的。
 

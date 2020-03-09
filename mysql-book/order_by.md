@@ -37,6 +37,7 @@ Max_length_for_sort_data 是专门控制用于排序的行数据长度的一个�
 ### 全字段排序 vs Rowid 排序
 
 如果 mysql 认为内存足够大，会优先使用全字段排序，把需要的字段都加入 sort buffer。
+
 那是不是所有的 order by 都需要用到 sort buffer 呢？ 不是的！
 
 还是上面的例子，如果我们有一个 city-name 的索引的话，从索引上取出来的就是按照 name 递增的，就不用再排序了。
