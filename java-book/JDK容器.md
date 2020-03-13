@@ -71,3 +71,33 @@ List<Object> ol = new ArrayList<Long>(); // 直接抛错
 ```java
 int londonArtistCount = allArtists.stream().filter(artist -> artist.isFrom(“London”)).count();
 ```
+
+### iterator
+
+Iterator 是一个 java.util 包里面的接口，其包含函数 next, hasNext, remove, forEachRemaining
+
+```java
+ArrayList<String> list = new ArrayList<>();
+...
+Iterator iterator = list.iterator();
+While(iterator.hasNext()) {
+    String s = iterator.next();
+    ...
+}
+
+void add(Object object)
+boolean hasNext();
+boolean hasPrevious();
+Object next();
+Object previous();
+void remove();
+
+
+ArrayList<String> list = new ArrayList<>();
+ListIterator iterator = list.listIterator();   // ListIterator是Iterator的子接口
+while (iterator.hasNext())
+            System.out.print(iterator.next() + " “);
+while (iterator.hasPrevious())
+            System.out.print(iterator.previous() + " ");
+
+```
